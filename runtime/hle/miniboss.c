@@ -30,7 +30,7 @@ typedef struct {
 } Kind;
 static const Kind g_kinds[] = {
     {MAIN_BASE + 0x1b80e90, MAIN_BASE + 0x3bfc60, 0xff0, 0x260, 0, 1, "Hinox", 0xff},  // 0x53: 10 = request HinoxStart
-    // (found 2026-10-12 with tools placing each one on Field_13D: LARECOMP_MB_SCAN_NAME / _FORCE)
+    // (found 2026-10-12 with tools placing each one on Field_13D: NXRT_MB_SCAN_NAME / _FORCE)
     {MAIN_BASE + 0x1b86e58, MAIN_BASE + 0x4301d0, 0x1110, 0x260, 0, 1, "Smasher", 0xff},       // 0x5c (+ iron ball)
     {MAIN_BASE + 0x1badc60, MAIN_BASE + 0x6d4f40, 0xff0, 0x260, 0, 1, "Avalaunch", 0xff},      // 0x60
     {MAIN_BASE + 0x1ba32c8, MAIN_BASE + 0x61f250, 0xff0, 0x260, 0, 1, "Rolling Bones", 0xff},  // 0x51 (+ spike bar)
@@ -50,7 +50,7 @@ static Seen g_seen[32];
 RT_ON_RESET(miniboss_reset) { memset(g_seen, 0, sizeof g_seen); }
 extern uint64_t renderer_present_count(void);
 
-static void log_new_vtable(uint64_t o, uint64_t vt) {  // LARECOMP_MB_LOG (RE): every actor class seen, once
+static void log_new_vtable(uint64_t o, uint64_t vt) {  // NXRT_MB_LOG (RE): every actor class seen, once
     static uint64_t vts[512];
     static int n;
     for (int i = 0; i < n; i++)
@@ -67,7 +67,7 @@ static void log_new_vtable(uint64_t o, uint64_t vt) {  // LARECOMP_MB_LOG (RE): 
         (unsigned long long)o, (unsigned long long)(LD64(vt + 0x100) - MAIN_BASE), name);
 }
 
-// LARECOMP_MB_SCAN=<vtable offsets, hex, comma-separated> (RE): finds the state machines inside actors of those classes
+// NXRT_MB_SCAN=<vtable offsets, hex, comma-separated> (RE): finds the state machines inside actors of those classes
 // (ctx pointer at +0x40 = the actor, state 0's enter function at +0x48 / +0x50), lists their states and logs changes
 static uint64_t g_scan_vt[16], g_scan_obj[8], g_scan_sm[8][8];
 static uint8_t g_scan_last[8][8];
@@ -78,16 +78,16 @@ static bool code_ptr(uint64_t p) { return p >= MAIN_BASE && p < MAIN_BASE + 0x16
 static void scan_seen(uint64_t o, uint64_t vt) {
     if (g_scan_nv < 0) {
         g_scan_nv = 0;
-        for (const char *p = ENV("LARECOMP_MB_SCAN"); p && *p && g_scan_nv < 16;) {
+        for (const char *p = ENV("NXRT_MB_SCAN"); p && *p && g_scan_nv < 16;) {
             g_scan_vt[g_scan_nv++] = MAIN_BASE + strtoull(p, (char **)&p, 16);
             while (*p == ',') p++;
         }
     }
     int k = 0;
     while (k < g_scan_nv && g_scan_vt[k] != vt) k++;
-    // LARECOMP_MB_SCAN_NAME=<text>: (also) actors whose level name (+0x18, "EnemyOctorok-<key>") contains it - a
+    // NXRT_MB_SCAN_NAME=<text>: (also) actors whose level name (+0x18, "EnemyOctorok-<key>") contains it - a
     // placed test actor keeps the name of the one it replaced; classes share base vtables
-    const char *want = ENV("LARECOMP_MB_SCAN_NAME");
+    const char *want = ENV("NXRT_MB_SCAN_NAME");
     bool named = want && strstr((const char *)(uintptr_t)(o + 0x18), want);
     if (k == g_scan_nv && !named) return;
     int fr = -1;
@@ -119,7 +119,7 @@ static void scan_tick(uint64_t frame) {
     for (int i = 0; i < 8; i++) {
         uint64_t o = g_scan_obj[i];
         if (!o) continue;
-        int alive = ENV("LARECOMP_MB_SCAN_NAME") && strstr((const char *)(uintptr_t)(o + 0x18), ENV("LARECOMP_MB_SCAN_NAME"));
+        int alive = ENV("NXRT_MB_SCAN_NAME") && strstr((const char *)(uintptr_t)(o + 0x18), ENV("NXRT_MB_SCAN_NAME"));
         for (int k = 0; k < g_scan_nv; k++) alive |= LD64(o) == g_scan_vt[k];
         if (!alive) { g_scan_obj[i] = 0; continue; }
         for (int j = 0; j < 8 && g_scan_sm[i][j]; j++) {
@@ -134,8 +134,8 @@ static void scan_tick(uint64_t frame) {
 
 void rt_mb_seen(uint64_t o) {
     uint64_t vt = LD64(o);
-    if (ENV("LARECOMP_MB_LOG")) log_new_vtable(o, vt);
-    if (ENV("LARECOMP_MB_SCAN") || ENV("LARECOMP_MB_SCAN_NAME")) scan_seen(o, vt);
+    if (ENV("NXRT_MB_LOG")) log_new_vtable(o, vt);
+    if (ENV("NXRT_MB_SCAN") || ENV("NXRT_MB_SCAN_NAME")) scan_seen(o, vt);
     int k = 0;
     while (k < NKINDS && g_kinds[k].vt != vt) k++;
     if (k == NKINDS) return;
@@ -148,7 +148,7 @@ void rt_mb_seen(uint64_t o) {
     if (free_i >= 0) g_seen[free_i] = (Seen){o, f, f, 0, k, 0, 0, 0, 0, 0};
 }
 
-// LARECOMP_MB_FORCE=<frame>:<sm offset hex>:<state>[:<change fn main offset hex>] (RE, with LARECOMP_MB_SCAN_NAME):
+// NXRT_MB_FORCE=<frame>:<sm offset hex>:<state>[:<change fn main offset hex>] (RE, with NXRT_MB_SCAN_NAME):
 // at that frame the scanned actor's state machine changes to that state (default change: Hinox's, main+0x3bfc60)
 static uint64_t scan_latest(void) {  // (the newest scanned actor: a reloaded room leaves stale copies in the list)
     for (int i = 7; i >= 0; i--)
@@ -162,13 +162,13 @@ static void force_tick(Cpu *c, uint64_t frame) {
     static int state;
     if (at == -2) {
         at = -1;
-        const char *e = ENV("LARECOMP_MB_FORCE");
+        const char *e = ENV("NXRT_MB_FORCE");
         unsigned long long smo = 0, ch = 0x3bfc60;
         if (e && sscanf(e, "%ld:%llx:%d:%llx", &at, &smo, &state, &ch) >= 3) sm = smo, chg = MAIN_BASE + ch;
         else at = -1;
     }
-    static long zat = -2;  // LARECOMP_MB_ZONE=<frame>: the dungeon zone manager's room-entry call on the scanned actor
-    if (zat == -2) zat = ENV("LARECOMP_MB_ZONE") ? atol(ENV("LARECOMP_MB_ZONE")) : -1;
+    static long zat = -2;  // NXRT_MB_ZONE=<frame>: the dungeon zone manager's room-entry call on the scanned actor
+    if (zat == -2) zat = ENV("NXRT_MB_ZONE") ? atol(ENV("NXRT_MB_ZONE")) : -1;
     if (zat >= 0 && (long)frame == zat && scan_latest()) {
         uint64_t saved[31], sp = c->sp;
         memcpy(saved, c->x, sizeof saved);
@@ -279,7 +279,7 @@ uint32_t rt_gohma_heading(uint64_t gohma, uint32_t track) {
         float b = a + (t + 1) / 2 * 0.7853982f * (t % 2 ? 1 : -1);
         if (!wall_at(p[0] + sinf(b) * 1.5f, p[2] + cosf(b) * 1.5f)) { a = b; break; }
     }
-    if (ENV("LARECOMP_LOG_ROAM")) LOG("[roam] Gohma at %.1f %.1f heads %.0f deg (Link %.1f %.1f)\n", p[0], p[2], a * 57.29578f, g_link[0], g_link[2]);
+    if (ENV("NXRT_LOG_ROAM")) LOG("[roam] Gohma at %.1f %.1f heads %.0f deg (Link %.1f %.1f)\n", p[0], p[2], a * 57.29578f, g_link[0], g_link[2]);
     return (uint32_t)(int32_t)(a * (2147483648.0f / 3.14159265f));
 }
 
@@ -296,7 +296,7 @@ static void gohma_walls(uint64_t gohma) {
     if (!wall_at(p[0] + sinf(a) * ahead, p[2] + cosf(a) * ahead)) return;
     *(float *)(uintptr_t)(gohma + 0x15e4) = 0;
     *(int16_t *)(uintptr_t)(gohma + 0x15a4) = *(int16_t *)(uintptr_t)(gohma + 0x15a6);
-    if (ENV("LARECOMP_LOG_ROAM")) LOG("[roam] Gohma at %.1f %.1f: wall ahead, move ends\n", p[0], p[2]);
+    if (ENV("NXRT_LOG_ROAM")) LOG("[roam] Gohma at %.1f %.1f: wall ahead, move ends\n", p[0], p[2]);
 }
 
 // Cue Ball on the Field rolls the loop of four corners fitted to its screen (enemies.py fit_rail): state 2 rolls to
@@ -335,7 +335,7 @@ static void avalaunch_tick(Cpu *c, Seen *s, const Kind *k, uint64_t frame) {
     uint8_t st = *(uint8_t *)(uintptr_t)(s->obj + k->sm + 0xd);
     if (!stuck_or_due(s, p, st == 2 || st == 3, frame)) return;
     set_state(c, s, k, st == 2 ? 3 : 2);
-    if (ENV("LARECOMP_LOG_ROAM")) LOG("[roam] Avalaunch at %.1f %.1f switches (%s)\n", p[0], p[2], st == 2 ? "home" : "out");
+    if (ENV("NXRT_LOG_ROAM")) LOG("[roam] Avalaunch at %.1f %.1f switches (%s)\n", p[0], p[2], st == 2 ? "home" : "out");
 }
 
 static void cueball_tick(Cpu *c, Seen *s, const Kind *k, uint64_t frame) {
@@ -350,7 +350,7 @@ static void cueball_tick(Cpu *c, Seen *s, const Kind *k, uint64_t frame) {
     if (!due_ok && was_stuck < 19) { s->flip_at = 0; return; }  // (state 2: a random turn waits for the loop)
     *(uint8_t *)(uintptr_t)(s->obj + 0x1731) ^= 1;
     set_state(c, s, k, 8);
-    if (ENV("LARECOMP_LOG_ROAM")) LOG("[roam] Cue Ball at %.1f %.1f turns back\n", p[0], p[2]);
+    if (ENV("NXRT_LOG_ROAM")) LOG("[roam] Cue Ball at %.1f %.1f turns back\n", p[0], p[2]);
 }
 
 // Blaino's knock-out (tools/patches.py CRASHOUT_SITE): on the Field Link just falls back down - no fade, no restart
@@ -358,7 +358,7 @@ static void cueball_tick(Cpu *c, Seen *s, const Kind *k, uint64_t frame) {
 int rt_crashout_skip(void) { return rt_gohma_free(); }
 
 void miniboss_tick(Cpu *c, uint64_t frame) {
-    if (ENV("LARECOMP_MB_SCAN") || ENV("LARECOMP_MB_SCAN_NAME")) scan_tick(frame);
+    if (ENV("NXRT_MB_SCAN") || ENV("NXRT_MB_SCAN_NAME")) scan_tick(frame);
     force_tick(c, frame);
     extern const char *rando_seed_dir(void);
     if (!rando_seed_dir()) return;  // (only seeds put mini-bosses on the Field)
@@ -377,7 +377,7 @@ void miniboss_tick(Cpu *c, uint64_t frame) {
         if (!strcmp(k->name, "Avalaunch")) avalaunch_tick(c, s, k, frame);
         uint8_t st = *(uint8_t *)(uintptr_t)(s->obj + k->sm + 0xd);
         if (k->then && s->woken && st == k->fight && frame - s->woken_at >= 2) set_state(c, s, k, k->then);
-        if (ENV("LARECOMP_LOG_MB_Y") && frame % 5 == 0 && s->woken && LD64(s->obj + 0x80)) {  // (RE: height by state)
+        if (ENV("NXRT_LOG_MB_Y") && frame % 5 == 0 && s->woken && LD64(s->obj + 0x80)) {  // (RE: height by state)
             const float *q = (const float *)(uintptr_t)(LD64(s->obj + 0x80) + 0x80);
             LOG("[mb-y] f%llu %s %llx st %u at %.2f %.2f %.2f\n", (unsigned long long)frame, k->name,
                 (unsigned long long)s->obj, st, q[0], q[1], q[2]);

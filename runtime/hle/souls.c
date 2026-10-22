@@ -92,7 +92,7 @@ uint64_t rt_actor_create_fn(uint64_t fn, uint32_t type, uint64_t info) {
     extern bool rt_no_buff_actor(uint32_t type);  // no-buff-drops (qol.c): no Piece of Power / Guardian Acorn at all
     if (rt_no_buff_actor(type)) return 0;
     if (g_nsouls < 0) load();
-    if (ENV("LARECOMP_LOG_SPAWN")) {  // (debug: every actor the factory makes; spawn info words)
+    if (ENV("NXRT_LOG_SPAWN")) {  // (debug: every actor the factory makes; spawn info words)
         LOG("[spawn] type %#x:", type);
         for (int w = 0; w < 24; w++) LOG(" %llx", (unsigned long long)LD64(info + 8 * w));
         LOG("\n");
@@ -149,14 +149,14 @@ static void watch_flags(void) {
 void souls_fairy_tint(const float *m, uint32_t m_size, float tint[8]) {
     if (g_nsouls < 0) load();
     int kind = -1;
-    if (ENV("LARECOMP_SOUL_TINT")) kind = atoi(ENV("LARECOMP_SOUL_TINT"));  // (test: 0 / 1 always on, -1 off)
+    if (ENV("NXRT_SOUL_TINT")) kind = atoi(ENV("NXRT_SOUL_TINT"));  // (test: 0 / 1 always on, -1 off)
     else if (g_got_kind >= 0 && renderer_present_count() - g_got_frame <= 600) kind = g_got_kind;  // being received
     else if (g_nspots) {  // standing in the world at a soul's spot (it bobs and turns), or in a soul zone
         const char *lv = level_name();
         for (int i = 0; i < g_nspots && kind < 0; i++)
             if (isnan(g_spots[i].x) && !strcmp(g_spots[i].level, lv)) kind = g_spots[i].kind;
     }
-    if (kind < 0 && !ENV("LARECOMP_SOUL_TINT") && m && m_size >= 48 && g_nspots) {
+    if (kind < 0 && !ENV("NXRT_SOUL_TINT") && m && m_size >= 48 && g_nspots) {
         const char *lv = level_name();
         for (int i = 0; i < g_nspots && kind < 0; i++) {
             const Spot *sp = &g_spots[i];
@@ -222,7 +222,7 @@ void souls_tick(uint64_t frame) {
             if (x != pos[0] || z != pos[2]) {
                 pos[0] = pos2[0] = x;
                 pos[2] = pos2[2] = z;
-                if (ENV("LARECOMP_LOG_SOULS")) LOG("[souls] f%llu wall at (%.2f, %.2f)\n", (unsigned long long)frame, x, z);
+                if (ENV("NXRT_LOG_SOULS")) LOG("[souls] f%llu wall at (%.2f, %.2f)\n", (unsigned long long)frame, x, z);
             }
         }
     }

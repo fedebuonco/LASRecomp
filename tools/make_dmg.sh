@@ -5,7 +5,7 @@ set -e
 cd "$(dirname "$0")/.."
 APP="build/LAS Recomp.app"
 [ -d "$APP" ] || { echo "no $APP - run make app first" >&2; exit 1; }
-VERSION=$(sed -n 's/^#define LARECOMP_VERSION "\(.*\)"/\1/p' runtime/ui/launcher.mm)  # (the release tag)
+VERSION=$(sed -n 's/^#define LAS_VERSION "\(.*\)"/\1/p' runtime/las_game.c)  # (the release tag)
 OUT="build/dist/LAS Recomp-$VERSION-macOS.dmg"
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT

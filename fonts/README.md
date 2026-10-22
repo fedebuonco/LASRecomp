@@ -9,4 +9,4 @@ For the exact look, put your own copies of the system fonts here:
 - `nintendo_udsg-r_std_003.bfttf`: the main font (a `.ttf` with the same name, or spelled `nintendo_udsgr_std_003`, also works)
 - `nintendo_ext_003.bfttf`: button glyphs (optional)
 
-`LARECOMP_FONT=<file>` overrides everything (.ttf / .otf / .ttc / .bfttf).
+`NXRT_FONT=<file>` overrides everything (.ttf / .otf / .ttc / .bfttf).

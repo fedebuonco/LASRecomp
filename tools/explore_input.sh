@@ -1,5 +1,5 @@
 #!/bin/bash
-# Deterministic input script used for the exploration runs (prints LARECOMP_INPUT)
+# Deterministic input script used for the exploration runs (prints NXRT_INPUT)
 python3 -c "
 import random
 import os; random.seed(int(os.environ.get('SEED','7')))

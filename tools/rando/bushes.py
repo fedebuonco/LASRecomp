@@ -26,13 +26,13 @@ import pots
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 BUSH_TYPE = 0xb6  # ObjGrass (bushes; ObjLawn 0xb5 is the tall grass)
-FLAG_BASE = int(os.environ.get('LARECOMP_BUSH_FLAG_BASE', 2048))  # (env: experiments)
-FLAG_LIMIT = int(os.environ.get('LARECOMP_BUSH_FLAG_LIMIT', 4096))  # runtime/hle/flags_ext.c: 512-byte bitfield
+FLAG_BASE = int(os.environ.get('NXRT_BUSH_FLAG_BASE', 2048))  # (env: experiments)
+FLAG_LIMIT = int(os.environ.get('NXRT_BUSH_FLAG_LIMIT', 4096))  # runtime/hle/flags_ext.c: 512-byte bitfield
 # what bushes give in the original game: hearts and rupees mostly (ItemDrop 'Grass'), a few refills
 JUNK_MIX = [('pot-heart', 0.32), ('rupee-5', 0.34), ('rupee-20', 0.10), ('rupee-50', 0.03),
             ('pot-arrows', 0.08), ('pot-bombs', 0.08), ('pot-powder', 0.05)]
 BUSH_TRAPS = pots.POT_TRAPS
-HIDE_SCALE = float(os.environ.get('LARECOMP_BUSH_HIDE', 0.4))  # smaller than in pots: leaves don't cover a 0.7 item
+HIDE_SCALE = float(os.environ.get('NXRT_BUSH_HIDE', 0.4))  # smaller than in pots: leaves don't cover a 0.7 item
 
 
 def _pit_tiles(room):
@@ -63,7 +63,7 @@ def scan(romfs, leb, pits=False, open_mabe=False):
     3 hiding a staircase (02H, 05K, 11K: the hole model with param 2 + an AreaLevelOpen; the tile isn't a pit - the
     item vanished into the stairs and the bush wasn't drawn gold). n counts every bush, so a bush's name doesn't
     depend on which others are left out."""
-    limit = int(os.environ.get('LARECOMP_BUSH_MAX', 100000))  # (experiments)
+    limit = int(os.environ.get('NXRT_BUSH_MAX', 100000))  # (experiments)
     out = []
     for f in sorted(glob.glob(os.path.join(romfs, 'region_common', 'level', 'Field', 'Field_*.leb'))):
         room_name = os.path.basename(f)[:-4]
@@ -73,7 +73,7 @@ def scan(romfs, leb, pits=False, open_mabe=False):
         tips = [(t.posX, t.posZ) for t in room.actors if t.name.startswith(b'ObjFieldTip')]
         n = 0
         for a in room.actors:
-            only = os.environ.get('LARECOMP_BUSH_ROOMS')  # (experiments: comma-separated rooms)
+            only = os.environ.get('NXRT_BUSH_ROOMS')  # (experiments: comma-separated rooms)
             if a.type != BUSH_TYPE:
                 continue
             pit = (int((a.posX - ox) // 1.5), int((a.posZ - oz) // 1.5)) in holes or \

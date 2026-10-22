@@ -13,7 +13,7 @@
 
 #include "../hle.h"
 #include "../rando.h"
-#include "../settings.h"
+#include "../las_settings.h"
 
 #define HOOK_TARGET 0x4000u
 
@@ -41,31 +41,31 @@ static int seed_on(void) {
 }
 
 // The seed forces it on (the Gameplay toggle is greyed out then). On the start screen: the seed PLAY would start
-// (g_settings.rando_seed, kept up to date there), read from its folder - rando_seed_dir() would apply its patches
+// (g_las.rando_seed, kept up to date there), read from its folder - rando_seed_dir() would apply its patches
 // before the game is loaded.
 extern int g_start_screen;  // warp.c
 int rt_hookshot_seed_forced(void) {
     if (!g_start_screen) return seed_on();
     static char last[128] = "\x01";
     static int on;
-    if (strcmp(last, g_settings.rando_seed)) {
-        snprintf(last, sizeof last, "%s", g_settings.rando_seed);
+    if (strcmp(last, g_las.rando_seed)) {
+        snprintf(last, sizeof last, "%s", g_las.rando_seed);
         char dir[256];
-        snprintf(dir, sizeof dir, "rando/%s", g_settings.rando_seed);
-        on = g_settings.rando_seed[0] && dir_has_it(dir);
+        snprintf(dir, sizeof dir, "rando/%s", g_las.rando_seed);
+        on = g_las.rando_seed[0] && dir_has_it(dir);
     }
     return on;
 }
 
 int rt_hookshot_anything(void) {
-    const char *e = ENV("LARECOMP_HOOKSHOT_ANY");  // test: 1 / 0 forces it
+    const char *e = ENV("NXRT_HOOKSHOT_ANY");  // test: 1 / 0 forces it
     if (e) return atoi(e) != 0;
-    return g_settings.cheat_hookshot || seed_on();
+    return g_las.cheat_hookshot || seed_on();
 }
 
 // x0..: the Shot update's frame; attr = the hit surface's attribute word (sp+0x38)
 uint32_t rt_hookshot_attr(Cpu *c, uint32_t attr) {
-    if (ENV("LARECOMP_HOOKSHOT_LOG")) {
+    if (ENV("NXRT_HOOKSHOT_LOG")) {
         uint64_t res = LD64(c->sp + 0xa8);  // hit record
         LOG("[hookshot] hit attr %#x rec %#llx\n", attr, (unsigned long long)res);
     }
@@ -73,7 +73,7 @@ uint32_t rt_hookshot_attr(Cpu *c, uint32_t attr) {
     return attr;
 }
 
-// ---- test hook: LARECOMP_HOOKSHOT_TOUR=<step>;<step>...  step = <Level>:<Locator>:<x>:<z>:<script>
+// ---- test hook: NXRT_HOOKSHOT_TOUR=<step>;<step>...  step = <Level>:<Locator>:<x>:<z>:<script>
 // Warps to Level/Locator, waits for the level, puts Link at x, z, then runs <script> (relative frames):
 // "<t>:<L|R|U|D|A|B|X|Y>:<frames>" input, "<t>:S:0" window shot (build/tour_<SHOT_ID>_<step>_<t>.png),
 // "<t>:E:0" end of the step. Link's position is logged every 10 frames ([tour]). (The shots come out upside down.)
@@ -85,7 +85,7 @@ void hookshot_tour_tick(uint64_t frame) {
     static uint64_t t0;
     if (nsteps < 0) {
         nsteps = 0;
-        const char *e = getenv("LARECOMP_HOOKSHOT_TOUR");
+        const char *e = getenv("NXRT_HOOKSHOT_TOUR");
         if (!e) return;
         char *s = strdup(e);
         for (char *p = strtok(s, ";"); p && nsteps < 64; p = strtok(NULL, ";")) steps[nsteps++] = p;

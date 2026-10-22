@@ -6,7 +6,7 @@
   tools/perf_sweep.py report   per-room table -> build/sweep/report.txt (rooms under 58 fps or with long frames)
 
 Each room gets STEP frames: the first SETTLE frames (load, fade) are ignored, the rest are averaged from the
-LARECOMP_FPS_INTERVAL=0.5 "[metal]" lines (fps, max frame ms, gpu ms, passes, fbcopy).
+NXRT_FPS_INTERVAL=0.5 "[metal]" lines (fps, max frame ms, gpu ms, passes, fbcopy).
 """
 import json
 import os
@@ -43,8 +43,8 @@ def run():
         warps = ','.join(f'{FIRST + i * STEP}:{lv}:{loc}' for i, (lv, loc) in enumerate(chunk))
         subprocess.run([os.path.join(ROOT, 'tools', 'fresh_save.sh'), 'testsave_sweep'], cwd=ROOT,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        env = dict(os.environ, LARECOMP_SAVE_DIR='build/testsave_sweep', LARECOMP_INPUT=TITLE_INPUT,
-                   LARECOMP_WARP_AT=warps, LARECOMP_FPS_INTERVAL='0.5', LARECOMP_WINDOW='1280x720')
+        env = dict(os.environ, NXRT_SAVE_DIR='build/testsave_sweep', NXRT_INPUT=TITLE_INPUT,
+                   NXRT_WARP_AT=warps, NXRT_FPS_INTERVAL='0.5', NXRT_WINDOW='1280x720')
         end = FIRST + len(chunk) * STEP + 60
         crashed_at = None
         with open(log, 'w') as f:

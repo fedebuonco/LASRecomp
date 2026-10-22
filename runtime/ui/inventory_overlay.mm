@@ -27,7 +27,7 @@ int pets_current(void);
 int pets_menu_slot(void);      // highlighted choice while the cursor is on the companion slot, else -1
 const char *souls_at(int i, int *kind, bool *owned);
 }
-#include "../input_bind.h"
+#include "input_bind.h"
 
 #define DUNGEON_RECORDS (MAIN_BASE + 0x1CBB220 + 0xE0)  // live save: 0x10-byte records (+0 keys, +1 item bits)
 

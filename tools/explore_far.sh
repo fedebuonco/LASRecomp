@@ -1,5 +1,5 @@
 #!/bin/bash
-# Long-stride random walk (prints LARECOMP_INPUT): leaves the starting screen; SEED/STEPS env.
+# Long-stride random walk (prints NXRT_INPUT): leaves the starting screen; SEED/STEPS env.
 python3 -c "
 import random, os
 random.seed(int(os.environ.get('SEED','1')))

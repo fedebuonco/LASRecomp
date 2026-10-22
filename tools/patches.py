@@ -356,7 +356,7 @@ def _dgn_map(gen, a):
 PATCHES[DGN_MAP_SITE] = _dgn_map
 
 
-# Debug (LARECOMP_LOG_RESNAME=1): main+0x10def30 builds a resource handle from a name (x2 -> {char *name, ...})
+# Debug (NXRT_LOG_RESNAME=1): main+0x10def30 builds a resource handle from a name (x2 -> {char *name, ...})
 # and looks it up; the generated-dungeon map crash dereferences a handle whose resource wasn't found.
 RES_NAME_SITE = 0x70010def30
 
@@ -685,3 +685,14 @@ def _prompt_pos(gen, a):
 
 
 PATCHES[PROMPT_POS_SITE] = _prompt_pos
+
+
+# Randomizer instruction variants (tools/rando/collect_patches.py): module offset -> the words a seed may put there;
+# the generated code asks the runtime which one runs (nx_code_variant -> the active seed: runtime/rando.c rando_word).
+import json as _json
+import os as _os
+_rv = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'rando', 'patch_variants.json')
+VARIANTS = {}
+if _os.path.exists(_rv):
+    for _a, _ws in _json.load(open(_rv))['code'].items():
+        VARIANTS[int(_a, 16)] = [int(_w, 16) for _w in _ws]

@@ -125,8 +125,8 @@ def cell_pos(name):
 
 
 # A level's map texture archive: archives over 255 textures crashed - a LAS BNTX writer bug (relocation stride,
-# fixed 2026-10-08); the budget is now about memory (a 78 MB merge ran out). LARECOMP_TEXTURE_BUDGET overrides.
-TEXTURE_BUDGET = int(os.environ.get('LARECOMP_TEXTURE_BUDGET', 330))  # 308 textures = 63 MB loaded fine
+# fixed 2026-10-08); the budget is now about memory (a 78 MB merge ran out). NXRT_TEXTURE_BUDGET overrides.
+TEXTURE_BUDGET = int(os.environ.get('NXRT_TEXTURE_BUDGET', 330))  # 308 textures = 63 MB loaded fine
 _tex_cache = {}
 
 
@@ -743,7 +743,7 @@ def plan_all(cat, seed, romfs, levels=None, stats=None, rounds=None):
     rounds, the one with the fewest duplicates wins (then the fewest unused rooms)."""
     levels = levels or list(ENTRANCES)
     if rounds is None:
-        rounds = int(os.environ.get('LARECOMP_GEN_ROUNDS', 8))
+        rounds = int(os.environ.get('NXRT_GEN_ROUNDS', 8))
     fixed = set()
     for lv in levels:
         fixed |= set(anchors_of(cat, lv)) | {ENTRANCES[lv]}
@@ -994,7 +994,7 @@ def plan_all_chaos(cat, seed, romfs, levels=None, rounds=None, madness=False, se
     Returns ({level: layout}, [door_jumps rows])."""
     levels = levels or list(ENTRANCES)
     if rounds is None:
-        rounds = int(os.environ.get('LARECOMP_GEN_ROUNDS', 8))
+        rounds = int(os.environ.get('NXRT_GEN_ROUNDS', 8))
     fixed = set()
     for lv in levels:
         fixed |= set(anchors_of(cat, lv)) | {ENTRANCES[lv]}

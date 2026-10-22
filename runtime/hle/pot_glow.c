@@ -10,7 +10,7 @@
 #include <string.h>
 
 #include "../hle.h"
-#include "../platform.h"
+#include "platform.h"
 #include "../rando.h"
 
 #define PLAYER_STATUS_PTR (MAIN_BASE + 0x1CC1368)  // PlayerStatus*: current level name at +0
@@ -29,7 +29,7 @@ void pot_gold_tint(float tint[8]);
 
 static void load(void) {
     g_npots = 0;
-    const char *e = getenv("LARECOMP_POT_TINT");  // r,g,b,mix,pulse_r,pulse_g,pulse_b (tuning)
+    const char *e = getenv("NXRT_POT_TINT");  // r,g,b,mix,pulse_r,pulse_g,pulse_b (tuning)
     if (e) sscanf(e, "%f,%f,%f,%f,%f,%f,%f", &g_gold[0], &g_gold[1], &g_gold[2], &g_gold[3], &g_gold[4], &g_gold[5], &g_gold[6]);
     const char *dir = rando_seed_dir();
     if (!dir) return;
@@ -96,7 +96,7 @@ static void level_pots(void) {
             if (!strcmp(g_pots[i].level, lv)) g_lv_idx[g_nlv++] = i;
         qsort(g_lv_idx, (size_t)g_nlv, sizeof(int), by_x);
     }
-    if (ENV("LARECOMP_LOG_POTS") && f % 120 == 0) LOG("[pots] frame %llu level '%s': %d item pots\n", (unsigned long long)f, lv, g_nlv);
+    if (ENV("NXRT_LOG_POTS") && f % 120 == 0) LOG("[pots] frame %llu level '%s': %d item pots\n", (unsigned long long)f, lv, g_nlv);
 }
 
 // Cheap per-draw gate for the renderer: false when no item pot can be on screen.
@@ -306,7 +306,7 @@ bool pot_level_active(void) {
     return active;
 }
 
-// LARECOMP_POT_PROBE=1 (debug): log draws whose model matrix sits within a tile of an item pot / bush of this level
+// NXRT_POT_PROBE=1 (debug): log draws whose model matrix sits within a tile of an item pot / bush of this level
 // (whatever their scale / rotation / shader) - finds how a kind of object is drawn.
 void pot_probe(const float *m, bool tintable, uint64_t mesh, uint32_t inst) {
     if (!pot_glow_active()) return;

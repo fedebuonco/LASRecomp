@@ -1,5 +1,5 @@
 # Field tiles the shovel digs (tile id = ((row - 1) * 16 + column) * 80 + tile): the in-game dig test
-# (runtime/hle/digs.c LARECOMP_DIG_TEST) dug a hole on each; tools/rando/digs.py --verified <results>
+# (runtime/hle/digs.c NXRT_DIG_TEST) dug a hole on each; tools/rando/digs.py --verified <results>
 148 149 158 159 220 221 230 231 614 615 616 617 618 624 626 627
 628 634 635 636 637 638 841 842 846 847 848 849 850 851 857 858
 859 860 861 862 864 865 866 867 868 869 872 873 874 875 876 877

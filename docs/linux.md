@@ -15,7 +15,7 @@ The start screen asks for the folder with your own game files and sets them up.
 
 Everything the app writes lives in `~/.local/share/lasrecomp` (`$XDG_DATA_HOME/lasrecomp`): game files (`extracted/`),
 saves, seeds, settings (`larecomp.ini`), shader caches, imported fonts. Started without a terminal the log is
-`~/.local/share/lasrecomp/lasrecomp.log` (from a terminal it prints there instead). `LARECOMP_DATA_ROOT=<dir>` uses
+`~/.local/share/lasrecomp/lasrecomp.log` (from a terminal it prints there instead). `NXRT_DATA_ROOT=<dir>` uses
 another folder.
 
 Controllers work as on the other systems (SDL3's gamepad support, bundled): Xbox, PlayStation (DualShock 4,
@@ -76,7 +76,7 @@ three launches of the AppImage itself - the start screen; a session from a test 
 and every dungeon's entrance; and a seed generated from the in-game Randomizer tab, switched to live, the save loaded
 on it, then deleted. Each step is checked in the log and by a screenshot. `build/smoke/report.txt` ends with READY FOR
 RELEASE or NOT READY; `build/smoke/sheet.png` shows every screenshot. It needs `extracted/` in the checkout and a test
-save outside git (`~/.local/share/lasrecomp-smoketest/save`, or `LARECOMP_SMOKE_SAVE`): copy `save/` from any build
+save outside git (`~/.local/share/lasrecomp-smoketest/save`, or `NXRT_SMOKE_SAVE`): copy `save/` from any build
 after starting a new game once.
 
 The AppImage holds `lasrecomp`, `rando-gen/`, the start screen font and the bundled libraries (SDL3,

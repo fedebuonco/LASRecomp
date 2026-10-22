@@ -1,4 +1,4 @@
-// Shader preparation tour (first-launch shader compile, user 2026-10-08): LARECOMP_SHADER_TOUR=<frames per spot>
+// Shader preparation tour (first-launch shader compile, user 2026-10-08): NXRT_SHADER_TOUR=<frames per spot>
 // warps through every warp spot of the game (runtime/ui/warp_data.h), letting each scene render for a moment so
 // its shaders get translated and compiled - they land in cache/shaders/ and Metal's disk cache, which the boot
 // warm-up (runtime/nvn/renderer.m shader_cache_warm) loads every later start: no first-use pop-in. Nothing derived
@@ -22,27 +22,27 @@ bool warp_blocked(const char *locator);
 extern "C" void shader_tour_tick(uint64_t frame) {
     static int per = -1, i, waiting;
     static uint64_t since, started, applied_reset;
-    if (per < 0) { const char *e = ENV("LARECOMP_SHADER_TOUR"); per = e ? atoi(e) : 0; if (e && per < 120) per = 240; }
+    if (per < 0) { const char *e = ENV("NXRT_SHADER_TOUR"); per = e ? atoi(e) : 0; if (e && per < 120) per = 240; }
     if (!per || !game_in_play()) return;
-    static long from = -1;  // LARECOMP_TOUR_FROM=<frame>: not before (a test script still loading a save)
-    if (from < 0) { const char *e = ENV("LARECOMP_TOUR_FROM"); from = e ? atol(e) : 0; }
+    static long from = -1;  // NXRT_TOUR_FROM=<frame>: not before (a test script still loading a save)
+    if (from < 0) { const char *e = ENV("NXRT_TOUR_FROM"); from = e ? atol(e) : 0; }
     if ((long)frame < from) return;
     const int n = (int)(sizeof kWarpSpots / sizeof kWarpSpots[0]);
     if (!started) { started = frame; LOG("[tour] %d spots, %d frames each\n", n, per); }
-    if (i >= n && ENV("LARECOMP_TOUR_LOOP")) { i = 0; LOG("[tour] loop\n"); }
+    if (i >= n && ENV("NXRT_TOUR_LOOP")) { i = 0; LOG("[tour] loop\n"); }
     if (i >= n) {
         LOG("[tour] done: %d spots in %.0f s\n", n, (frame - started) / 60.0);
         exit(0);
     }
-    // LARECOMP_TOUR_LEVEL=<level>: only that level's spots; LARECOMP_TOUR_LOOP=1: start over at the end (soak
+    // NXRT_TOUR_LEVEL=<level>: only that level's spots; NXRT_TOUR_LOOP=1: start over at the end (soak
     // tests, e.g. the overworld frame-rate dips after a long session)
-    static const char *only = ENV("LARECOMP_TOUR_LEVEL");
-    static const char *pre = ENV("LARECOMP_TOUR_PREFIX");  // locator prefix (e.g. Field_: Manbo's Warp_* spots
+    static const char *only = ENV("NXRT_TOUR_LEVEL");
+    static const char *pre = ENV("NXRT_TOUR_PREFIX");  // locator prefix (e.g. Field_: Manbo's Warp_* spots
                                                            // throw when warped to from inside the Field)
     if ((only && strcmp(kWarpSpots[i].level, only)) || (pre && strncmp(kWarpSpots[i].locator, pre, strlen(pre))) ||
         warp_blocked(kWarpSpots[i].locator)) {
         i++;
-        if (i >= n && ENV("LARECOMP_TOUR_LOOP")) { i = 0; LOG("[tour] loop\n"); }
+        if (i >= n && ENV("NXRT_TOUR_LOOP")) { i = 0; LOG("[tour] loop\n"); }
         return;
     }
     const WarpSpot &w = kWarpSpots[i];

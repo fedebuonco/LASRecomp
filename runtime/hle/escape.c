@@ -49,11 +49,11 @@ static const struct { const char *level; float x0, z0, x1, z1; } kBossArena[] = 
 static const char *const kHome[2] = {"Field", "Field_11C"};  // (out of Marin & Tarin's front door)
 static const char *const kTarinHouse = "MarinTarinHouse";  // (where Tarin holds the bottle up)
 
-// LARECOMP_ESCAPE=1 / 0 forces it on / off (tests: also in vanilla)
+// NXRT_ESCAPE=1 / 0 forces it on / off (tests: also in vanilla)
 static int on = -1;  // (per seed: read again after an in-place reboot)
 static bool active(void) {
     if (on >= 0) return on;
-    const char *e = getenv("LARECOMP_ESCAPE");
+    const char *e = getenv("NXRT_ESCAPE");
     if (e) return on = atoi(e) != 0;
     on = 0;
     const char *dir = rando_seed_dir();
@@ -107,13 +107,13 @@ int rt_bottle3_use(void) {
 
 void escape_tick(Cpu *c, uint64_t frame) {
     (void)c;
-    // LARECOMP_SET8=<frame>:<hex addr>:<hex byte>[,...] (test: set save bytes, e.g. live save +0x5562 = the item slot on
+    // NXRT_SET8=<frame>:<hex addr>:<hex byte>[,...] (test: set save bytes, e.g. live save +0x5562 = the item slot on
     // Y, +0x5563 on X - the game's equip predicates read +0xa2 with Y, +0xa3 with X)
     static long at = -2;
     static char spec[256];
     if (at == -2) {
         at = -1;
-        const char *e = getenv("LARECOMP_SET8");
+        const char *e = getenv("NXRT_SET8");
         if (e) { strlcpy(spec, e, sizeof spec); at = atol(e); }
     }
     if (at >= 0 && (long)frame >= at && game_in_play()) {
@@ -149,11 +149,11 @@ RT_ON_RESET(escape_reset) { on = -1; }  // (seed switch: the next seed may diffe
 // PlayerStatus +0xa2 / +0xa3); the model only while Tarin hands it over (Marin & Tarin's house, not owned yet - the
 // get sequence runs before AddItem). Tint (translate.c): rgb = mix(rgb, t0.rgb * lum^t1.w + t1.rgb * lum, t0.w).
 // The Bomb Bag (tools/rando/bomb_bag_text.py): found bombs are held up as the Magic Powder sack while the flow keeps
-// GlobalFlags 431 (unused0431) set; the sack is drawn bomb blue then. LARECOMP_BOMB_BAG_TINT=1: always (test).
+// GlobalFlags 431 (unused0431) set; the sack is drawn bomb blue then. NXRT_BOMB_BAG_TINT=1: always (test).
 #define BOMB_BAG_FLAG 431
 static void bomb_bag_tint(float tint[8]) {
     const uint8_t *fl = (const uint8_t *)(uintptr_t)(MAIN_BASE + 0x1CBB220 + 0x5DC0);  // (live save: GlobalFlags)
-    if (!((fl[BOMB_BAG_FLAG >> 3] >> (BOMB_BAG_FLAG & 7)) & 1) && !getenv("LARECOMP_BOMB_BAG_TINT")) return;
+    if (!((fl[BOMB_BAG_FLAG >> 3] >> (BOMB_BAG_FLAG & 7)) & 1) && !getenv("NXRT_BOMB_BAG_TINT")) return;
     // ltint (translate.c): colour.rgb, mix, glow.rgb, luminance power - the bombs' deep navy, lit
     static const float navy[8] = {0.10f, 0.24f, 1.30f, 1.0f, 0.0f, 0.01f, 0.06f, 1.45f};
     memcpy(tint, navy, sizeof navy);

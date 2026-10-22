@@ -9,7 +9,7 @@
 
 extern "C" {
 #include "../hle.h"
-#include "../settings.h"
+#include "../las_settings.h"
 int game_in_play(void);
 }
 
@@ -34,26 +34,26 @@ static void fill_ammo(uint32_t count_off, int item_bit, int up_bit, int base_cap
 // Once per presented frame (render thread), from save_editor_frame.
 extern "C" void cheats_frame(void) {
     if (!game_in_play()) return;
-    static int env = -1;  // LARECOMP_CHEATS=hearts,ammo,rupees: force on for tests (not saved)
+    static int env = -1;  // NXRT_CHEATS=hearts,ammo,rupees: force on for tests (not saved)
     if (env < 0) {
-        const char *e = getenv("LARECOMP_CHEATS");
+        const char *e = getenv("NXRT_CHEATS");
         env = e != NULL;
         if (e) {
-            g_settings.cheat_hearts |= strstr(e, "hearts") != NULL;
-            g_settings.cheat_ammo |= strstr(e, "ammo") != NULL;
-            g_settings.cheat_rupees |= strstr(e, "rupees") != NULL;
+            g_las.cheat_hearts |= strstr(e, "hearts") != NULL;
+            g_las.cheat_ammo |= strstr(e, "ammo") != NULL;
+            g_las.cheat_rupees |= strstr(e, "rupees") != NULL;
         }
     }
-    if (g_settings.cheat_hearts) {
+    if (g_las.cheat_hearts) {
         int m = max_hp();
         if (F<int16_t>(HP) > 0 && F<int16_t>(HP) < m) F<int16_t>(HP) = (int16_t)m;  // (0 = dying/respawning: leave it)
     }
-    if (g_settings.cheat_ammo) {
+    if (g_las.cheat_ammo) {
         fill_ammo(BOMBS, 2, 4, 30);
         fill_ammo(ARROWS, 3, 5, 30);
         fill_ammo(POWDER, 8, 3, 20);
     }
-    if (g_settings.cheat_rupees && F<uint32_t>(RUPEES) != 999) F<uint32_t>(RUPEES) = 999;
+    if (g_las.cheat_rupees && F<uint32_t>(RUPEES) != 999) F<uint32_t>(RUPEES) = 999;
 }
 
 extern "C" void cheats_draw(float scale) {
@@ -63,12 +63,12 @@ extern "C" void cheats_draw(float scale) {
     }
     opt_begin("##cheats", scale);
     opt_section("Always on");
-    if (opt_toggle("Infinite hearts", &g_settings.cheat_hearts, false, "Health refills to full whenever Link is hurt."))
+    if (opt_toggle("Infinite hearts", &g_las.cheat_hearts, false, "Health refills to full whenever Link is hurt."))
         settings_save();
-    if (opt_toggle("Infinite ammo", &g_settings.cheat_ammo, false,
+    if (opt_toggle("Infinite ammo", &g_las.cheat_ammo, false,
                    "Bombs, arrows and Magic Powder stay full.\n\nOnly for the bags Link already owns."))
         settings_save();
-    if (opt_toggle("Infinite rupees", &g_settings.cheat_rupees, false, "Rupees stay at 999.")) settings_save();
+    if (opt_toggle("Infinite rupees", &g_las.cheat_rupees, false, "Rupees stay at 999.")) settings_save();
 
     opt_section("One time");
     if (opt_button("Max hearts", "Gives all 9 Heart Containers and 32 Pieces of Heart (20 hearts), then refills them.\n\n"

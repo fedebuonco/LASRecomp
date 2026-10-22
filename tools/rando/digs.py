@@ -30,7 +30,7 @@ import spoiler_view
 
 FLAG_BASE = 4096  # runtime/hle/digs.c DIG_FLAG_BASE: flag of tile g = FLAG_BASE + g
 HERE = os.path.dirname(os.path.abspath(__file__))
-# Tiles proven diggable in game (the dig test, LARECOMP_DIG_TEST, dug a hole there): the grid flag alone isn't enough
+# Tiles proven diggable in game (the dig test, NXRT_DIG_TEST, dug a hole there): the grid flag alone isn't enough
 # - walls, cliff bases and doorways are 3D collision the grid doesn't know about. Tile ids only (no game data).
 VERIFIED = os.path.join(HERE, 'dig_tiles.txt')
 # (own rupee items: LAS's trapsanity turns every rupee-20 - and with blupsanity every rupee-5 - into a trap, which
@@ -202,7 +202,7 @@ def apply(locs, digs, mods, out_dir, romfs, event_tools, oead_tools, item_get, d
 
 
 def test_list(romfs, leb, out_path):
-    """Dig test list (runtime/hle/digs.c LARECOMP_DIG_TEST) for every possible check: tile id, C when grass / a bush
+    """Dig test list (runtime/hle/digs.c NXRT_DIG_TEST) for every possible check: tile id, C when grass / a bush
     has to be cut first, the nearest Field locator (the test warps there first; the list is grouped by it), then each
     free walkable neighbour tile at the same height as x,z,direction (N/S/E/W toward the tile; N = -z)."""
     grids, blocked, starts = {}, {}, []
@@ -242,7 +242,7 @@ def write_verified(results):
     tiles = sorted({int(line.split()[1]) for f in results for line in open(f) if line.startswith('DUG ')})
     with open(VERIFIED, 'w') as f:
         f.write('# Field tiles the shovel digs (tile id = ((row - 1) * 16 + column) * 80 + tile): the in-game dig test\n'
-                '# (runtime/hle/digs.c LARECOMP_DIG_TEST) dug a hole on each; tools/rando/digs.py --verified <results>\n')
+                '# (runtime/hle/digs.c NXRT_DIG_TEST) dug a hole on each; tools/rando/digs.py --verified <results>\n')
         for i in range(0, len(tiles), 16):
             f.write(' '.join(str(t) for t in tiles[i:i + 16]) + '\n')
     return len(tiles)

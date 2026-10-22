@@ -1,9 +1,9 @@
 # Sourced by the test scripts before they start ./build/lasrecomp: a new test copy of the game starts only while the
 # Mac has at least 10 GB free (each copy takes ~2 GB; too many at once ran it out of memory). Launches are taken one
 # at a time and the next waits ~20 s, so the copy just started has grown before memory is measured again.
-# LARECOMP_MIN_FREE_GB (default 10), LARECOMP_SLOT_DIR.
-GAME_MIN_FREE_GB=${LARECOMP_MIN_FREE_GB:-10}
-GAME_SLOT_DIR=${LARECOMP_SLOT_DIR:-$HOME/.cache/larecomp_test_slots}
+# NXRT_MIN_FREE_GB (default 10), NXRT_SLOT_DIR.
+GAME_MIN_FREE_GB=${NXRT_MIN_FREE_GB:-10}
+GAME_SLOT_DIR=${NXRT_SLOT_DIR:-$HOME/.cache/larecomp_test_slots}
 mkdir -p "$GAME_SLOT_DIR"
 game_free_gb() {  # free + inactive + speculative + purgeable pages (what macOS can hand out without swapping)
     vm_stat | awk '/page size of/ {ps = $8} /Pages (free|inactive|speculative|purgeable):/ {gsub("\\.", "", $NF); n += $NF}
@@ -20,10 +20,10 @@ echo $$ > "$L/pid"
 until [ "$(game_free_gb)" -ge "$GAME_MIN_FREE_GB" ]; do sleep 5; done
 ( sleep 20; rm -rf "$L" ) >/dev/null 2>&1 &
 GAME_SLOT=  # (nothing to release at exit)
-# test runs never write the player's larecomp.ini: a scratch copy unless the caller gave LARECOMP_SETTINGS
-if [ -z "$LARECOMP_SETTINGS" ]; then
+# test runs never write the player's larecomp.ini: a scratch copy unless the caller gave NXRT_SETTINGS
+if [ -z "$NXRT_SETTINGS" ]; then
     mkdir -p build/test_ini
-    LARECOMP_SETTINGS="build/test_ini/settings_$$.ini"
-    cp larecomp.ini "$LARECOMP_SETTINGS" 2>/dev/null || : > "$LARECOMP_SETTINGS"
-    export LARECOMP_SETTINGS
+    NXRT_SETTINGS="build/test_ini/settings_$$.ini"
+    cp larecomp.ini "$NXRT_SETTINGS" 2>/dev/null || : > "$NXRT_SETTINGS"
+    export NXRT_SETTINGS
 fi

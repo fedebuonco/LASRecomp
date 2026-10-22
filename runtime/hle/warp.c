@@ -67,7 +67,7 @@ void warp_request(const char *level, const char *locator) {
 
 // True while a save is loaded and Link exists in a level: the game manager's player slot ([gm + 0x4b8]) is
 // null on the boot / title / file-select screens (the level name there is stale), set once gameplay starts.
-int g_start_screen;  // runtime/ui/launcher.mm: the start screen is up - before the first boot nothing is loaded here
+extern int g_start_screen;  // (the runtime's: runtime/nxgame.h) the start screen is up - before the first boot nothing is loaded here
 
 int game_in_play(void) {
     if (g_start_screen) return 0;
@@ -92,12 +92,12 @@ bool warp_blocked(const char *locator) {
 }
 int warp_busy(void) { return g_pending; }  // a queued warp not applied yet (shader tour)
 
-// LARECOMP_WARP_AT=<frame>:<level>:<locator>[,<frame>:<level>:<locator>...]  (test hook)
-// LARECOMP_WARP_ON_LOAD=<level>:<locator>: warp once, ~1 s after a save is loaded (hand-off to the user)
+// NXRT_WARP_AT=<frame>:<level>:<locator>[,<frame>:<level>:<locator>...]  (test hook)
+// NXRT_WARP_ON_LOAD=<level>:<locator>: warp once, ~1 s after a save is loaded (hand-off to the user)
 static void warp_on_load(uint64_t frame) {
     static int done;
     static uint64_t since;
-    const char *e = getenv("LARECOMP_WARP_ON_LOAD");
+    const char *e = getenv("NXRT_WARP_ON_LOAD");
     if (done || !e) return;
     if (!game_in_play()) { since = 0; return; }
     if (!since) since = frame;
@@ -110,7 +110,7 @@ static void warp_on_load(uint64_t frame) {
 static void warp_test(uint64_t frame) {
     static const char *next;
     static int init;
-    if (!init) { init = 1; next = getenv("LARECOMP_WARP_AT"); }
+    if (!init) { init = 1; next = getenv("NXRT_WARP_AT"); }
     long at;
     char lvl[64], loc[64];
     if (!next || !*next || sscanf(next, "%ld:%63[^:]:%63[^,]", &at, lvl, loc) != 3) return;
@@ -122,11 +122,11 @@ static void warp_test(uint64_t frame) {
 
 #define PROCESS_REQUEST (MAIN_BASE + 0x81ba80)  // performs a pending level-jump request (x0 = request)
 
-// LARECOMP_DUMP_MEM=<frame>:<main offset>:<deref offsets, '+'-separated or ->:<bytes>  e.g. 4400:1cb9fb8:0+8:0x2000
+// NXRT_DUMP_MEM=<frame>:<main offset>:<deref offsets, '+'-separated or ->:<bytes>  e.g. 4400:1cb9fb8:0+8:0x2000
 // -> build/memdump.bin (test hook: [[main+off]+0]+8 ...)
 static void mem_dump_test(uint64_t frame) {
     static int done;
-    const char *e = getenv("LARECOMP_DUMP_MEM");
+    const char *e = getenv("NXRT_DUMP_MEM");
     if (done || !e) return;
     long at = strtol(e, (char **)&e, 0);
     if ((long)frame < at || *e != ':') return;
@@ -153,13 +153,13 @@ void warp_frame(uint64_t frame) {
     warp_test(frame);
     warp_on_load(frame);
     mem_dump_test(frame);
-    if (ENV("LARECOMP_LOG_WARPAVAIL") && frame % 300 == 0) {
+    if (ENV("NXRT_LOG_WARPAVAIL") && frame % 300 == 0) {
         uint64_t gm = LD64(MAIN_BASE + 0x1c97188), ps = LD64(MAIN_BASE + 0x1cc1368);
         LOG("[warp] frame %llu gm %llx +4b8 %llx +4a8 %llx level '%s'\n", (unsigned long long)frame, (unsigned long long)gm,
             gm ? (unsigned long long)LD64(gm + 0x4b8) : 0, gm ? (unsigned long long)LD64(gm + 0x4a8) : 0,
             ps ? (const char *)(uintptr_t)ps : "");
     }
-    if (ENV("LARECOMP_LOG_KEYITEMS") && frame % 120 == 0) {  // PlayerStatus key items vs the save buffer copy
+    if (ENV("NXRT_LOG_KEYITEMS") && frame % 120 == 0) {  // PlayerStatus key items vs the save buffer copy
         uint64_t ps = LD64(MAIN_BASE + 0x1cc1368);
         LOG("[keyitems] frame %llu ps %llx ps+ac %08x save+556c %08x\n", (unsigned long long)frame, (unsigned long long)ps,
             ps ? *(uint32_t *)(uintptr_t)(ps + 0xac) : 0, *(uint32_t *)(uintptr_t)(0x7001CBB220ull + 0x556c));
@@ -206,16 +206,16 @@ void give_item_request(int id, int count, int index) {
     g_give_pending = 1;
 }
 
-// LARECOMP_FIND_FLOATS=<frame>:<f1>,<f2>,... (RE): log every address in writable guest memory holding these floats
-// in a row (e.g. a camera zone's box). For the first hit, LARECOMP_FIND_FLOATS_PATH=1 logs pointer paths towards it
-// (BFS, "MAIN+" = a global), LARECOMP_FIND_FLOATS_WATCH=1 reports the functions touching it (as LARECOMP_WATCH_ADDR).
+// NXRT_FIND_FLOATS=<frame>:<f1>,<f2>,... (RE): log every address in writable guest memory holding these floats
+// in a row (e.g. a camera zone's box). For the first hit, NXRT_FIND_FLOATS_PATH=1 logs pointer paths towards it
+// (BFS, "MAIN+" = a global), NXRT_FIND_FLOATS_WATCH=1 reports the functions touching it (as NXRT_WATCH_ADDR).
 static void find_floats_tick(uint64_t frame) {
     static long at = -2;
     static float want[16];
     static int nw;
     if (at == -2) {
         at = -1;
-        const char *e = getenv("LARECOMP_FIND_FLOATS");
+        const char *e = getenv("NXRT_FIND_FLOATS");
         if (e) {
             at = strtol(e, (char **)&e, 10);
             while (*e == ':' || *e == ',') { e++; if (nw < 16) want[nw++] = strtof(e, (char **)&e); }
@@ -235,7 +235,7 @@ static void find_floats_tick(uint64_t frame) {
             LOG("[findfloats] %llx:", (unsigned long long)a);
             for (int d = -16; d < 32; d++) LOG(" %g", p[k + d]);
             LOG("\n");
-            if (!n && ENV("LARECOMP_FIND_FLOATS_PATH")) {  // pointer paths from main's globals to the hit (BFS)
+            if (!n && ENV("NXRT_FIND_FLOATS_PATH")) {  // pointer paths from main's globals to the hit (BFS)
                 uint64_t lv[64] = {a}, nx[64];
                 int nl = 1;
                 for (int depth = 0; depth < 5 && nl; depth++) {
@@ -256,7 +256,7 @@ static void find_floats_tick(uint64_t frame) {
                     nl = nn;
                 }
             }
-            if (!n && ENV("LARECOMP_FIND_FLOATS_WATCH")) {  // watch the first hit +-0x40 (LARECOMP_WATCH_ADDR)
+            if (!n && ENV("NXRT_FIND_FLOATS_WATCH")) {  // watch the first hit +-0x40 (NXRT_WATCH_ADDR)
                 extern uint64_t g_watch_lo, g_watch_hi;
                 extern void watch_arm(void);
                 g_watch_lo = a - 0x40, g_watch_hi = a + 0x40;
@@ -269,7 +269,7 @@ static void find_floats_tick(uint64_t frame) {
     at = -1;
 }
 
-// LARECOMP_FIND_MOVE=<A>,<B>,<C> (RE): snapshot writable guest memory at frames A and B; at C list the floats that
+// NXRT_FIND_MOVE=<A>,<B>,<C> (RE): snapshot writable guest memory at frames A and B; at C list the floats that
 // moved steadily (same step per frame A->B and B->C, step at least 1e-3/frame), e.g. Link's position while the
 // scripted stick is held. Output: build/find_move.txt (address, values at A/B/C).
 static void find_move_tick(uint64_t frame) {
@@ -279,7 +279,7 @@ static void find_move_tick(uint64_t frame) {
     static int nr;
     if (f[0] == -2) {
         f[0] = -1;
-        const char *e = getenv("LARECOMP_FIND_MOVE");
+        const char *e = getenv("NXRT_FIND_MOVE");
         if (e) sscanf(e, "%ld,%ld,%ld", &f[0], &f[1], &f[2]);
     }
     if (f[0] < 0) return;
@@ -306,7 +306,7 @@ static void find_move_tick(uint64_t frame) {
     }
     FILE *o = fopen("build/find_move.txt", "w");
     int n = 0;
-    float fm_tol = ENV("LARECOMP_FIND_MOVE_TOL") ? (float)atof(ENV("LARECOMP_FIND_MOVE_TOL")) : 0.05f;
+    float fm_tol = ENV("NXRT_FIND_MOVE_TOL") ? (float)atof(ENV("NXRT_FIND_MOVE_TOL")) : 0.05f;
     float dab = (float)(f[1] - f[0]), dbc = (float)(f[2] - f[1]);
     for (int i = 0; i < nr; i++) {
         if (!rs[i] || !snap[0][i] || !snap[1][i]) continue;
@@ -351,7 +351,7 @@ static void find_move_tick(uint64_t frame) {
     LOG("[findmove] %d steady floats -> build/find_move.txt\n", n);
 }
 
-// LARECOMP_ADDF=<frame>:<delta>:<file>[:<lo>:<hi>[:<first>:<count>]] (RE): at <frame> add <delta> to the values at
+// NXRT_ADDF=<frame>:<delta>:<file>[:<lo>:<hi>[:<first>:<count>]] (RE): at <frame> add <delta> to the values at
 // the addresses listed in <file> (hex address first on each line - build/find_move.txt works; lines ending in ' d'
 // are doubles), only those currently in [lo, hi], and of those only entries first..first+count-1 (bisecting);
 // all are logged again 30 frames later: Link's real position keeps the offset, mirrors snap back.
@@ -366,7 +366,7 @@ static void addf_tick(uint64_t frame) {
     static int n;
     if (at == -2) {
         at = -1;
-        const char *e = getenv("LARECOMP_ADDF");
+        const char *e = getenv("NXRT_ADDF");
         if (e) {
             char rest[512] = "";
             if (sscanf(e, "%ld:%f:%511[^:]:%511s", &at, &delta, path, rest) < 3) at = -1;
@@ -388,11 +388,11 @@ static void addf_tick(uint64_t frame) {
             addr[n] = a; dbl[n] = (char)d; n++;
         }
         if (f) fclose(f);
-        // LARECOMP_ADDF_MATCH=1: take the first listed value as the reference and poke EVERY float / double in guest
+        // NXRT_ADDF_MATCH=1: take the first listed value as the reference and poke EVERY float / double in guest
         // data memory within 0.001 of it instead (finds the real copy even if it doesn't move steadily)
-        if (getenv("LARECOMP_ADDF_MATCH") && (n > 0 || strcmp(getenv("LARECOMP_ADDF_MATCH"), "1"))) {
+        if (getenv("NXRT_ADDF_MATCH") && (n > 0 || strcmp(getenv("NXRT_ADDF_MATCH"), "1"))) {
             double ref = dbl[0] ? *(volatile double *)(uintptr_t)addr[0] : *(volatile float *)(uintptr_t)addr[0];
-            if (!strcmp(getenv("LARECOMP_ADDF_MATCH"), "mode")) {  // most common current value of the listed copies
+            if (!strcmp(getenv("NXRT_ADDF_MATCH"), "mode")) {  // most common current value of the listed copies
                 int best = 0;
                 for (int i = 0; i < n; i++) {
                     double vi = dbl[i] ? *(volatile double *)(uintptr_t)addr[i] : *(volatile float *)(uintptr_t)addr[i];
@@ -403,7 +403,7 @@ static void addf_tick(uint64_t frame) {
                     }
                     if (c > best) { best = c; ref = vi; }
                 }
-            } else if (strcmp(getenv("LARECOMP_ADDF_MATCH"), "1")) ref = atof(getenv("LARECOMP_ADDF_MATCH"));
+            } else if (strcmp(getenv("NXRT_ADDF_MATCH"), "1")) ref = atof(getenv("NXRT_ADDF_MATCH"));
             extern int kernel_data_regions(uint64_t *addr, uint64_t *size, int max);
             uint64_t ra[64], rs[64];
             int nr = kernel_data_regions(ra, rs, 64);
@@ -438,7 +438,7 @@ static void addf_tick(uint64_t frame) {
             }
         }
     } else if ((long)frame == at + 30) {
-        if (getenv("LARECOMP_ADDF_MATCH")) {  // did the unpoked copies follow? count values at old / new position
+        if (getenv("NXRT_ADDF_MATCH")) {  // did the unpoked copies follow? count values at old / new position
             extern int kernel_data_regions(uint64_t *addr, uint64_t *size, int max);
             uint64_t ra[64], rs[64];
             int nr = kernel_data_regions(ra, rs, 64), c_old = 0, c_new = 0;
@@ -458,14 +458,14 @@ static void addf_tick(uint64_t frame) {
     }
 }
 
-// LARECOMP_PTRSCAN=<frame>:<hex addr>:<hex range> (RE): log every 8-byte value in guest data memory pointing into
+// NXRT_PTRSCAN=<frame>:<hex addr>:<hex range> (RE): log every 8-byte value in guest data memory pointing into
 // [addr - range, addr] (which objects hold the object that contains addr), and where it is
 static void ptrscan_tick(uint64_t frame) {
     static long at = -2;
     static unsigned long long target, range;
     if (at == -2) {
         at = -1;
-        const char *e = getenv("LARECOMP_PTRSCAN");
+        const char *e = getenv("NXRT_PTRSCAN");
         if (e && sscanf(e, "%ld:%llx:%llx", &at, &target, &range) != 3) at = -1;
     }
     if (at < 0 || (long)frame != at) return;
@@ -484,11 +484,11 @@ static void ptrscan_tick(uint64_t frame) {
     LOG("[ptrscan] %d pointers\n", n);
 }
 
-// LARECOMP_MEMDUMP=<frame>:<hex addr>:<hex len>[,...] (RE): hex dump guest memory to the log
+// NXRT_MEMDUMP=<frame>:<hex addr>:<hex len>[,...] (RE): hex dump guest memory to the log
 static void memdump_tick(uint64_t frame) {
     static char spec[512];
     static int init;
-    if (!init) { init = 1; const char *e = getenv("LARECOMP_MEMDUMP"); if (e) strlcpy(spec, e, sizeof spec); }
+    if (!init) { init = 1; const char *e = getenv("NXRT_MEMDUMP"); if (e) strlcpy(spec, e, sizeof spec); }
     for (char *p = spec; *p;) {
         long f; unsigned long long a, l;
         if (sscanf(p, "%ld:%llx:%llx", &f, &a, &l) == 3 && (long)frame == f)
@@ -502,7 +502,7 @@ static void memdump_tick(uint64_t frame) {
     }
 }
 
-// LARECOMP_PANE_SCAN=<frame>:<hex addr>[:<depth>]: log UI panes reachable from an object (addr 0 = LARECOMP_FNPROF_BT's
+// NXRT_PANE_SCAN=<frame>:<hex addr>[:<depth>]: log UI panes reachable from an object (addr 0 = NXRT_FNPROF_BT's
 // x0, 1 = the dungeon map page) (RE: pane name at +0xB0,
 // translate +0x30/+0x34, scale +0x48/+0x4C), following pointers up to <depth> levels (default 2)
 static void pane_scan_rec(uint64_t obj, int depth, const char *path, uint64_t *seen, int *nseen) {
@@ -542,11 +542,11 @@ static void pane_scan_tick(uint64_t frame) {
     static int depth = 2;
     if (at == -2) {
         at = -1;
-        const char *e = getenv("LARECOMP_PANE_SCAN");
+        const char *e = getenv("NXRT_PANE_SCAN");
         if (e && sscanf(e, "%ld:%llx:%d", &at, (unsigned long long *)&addr, &depth) < 2) at = -1;
     }
     if (at < 0 || (long)frame != at) return;
-    extern uint64_t g_bt_first_x0;  // fnprof.c: x0 of the first LARECOMP_FNPROF_BT function hit (addr 0 = use it)
+    extern uint64_t g_bt_first_x0;  // fnprof.c: x0 of the first NXRT_FNPROF_BT function hit (addr 0 = use it)
     if (!addr) addr = g_bt_first_x0;
     if (addr == 1) { extern uint64_t chaos_dgnmap_obj(void); addr = chaos_dgnmap_obj(); }  // 1 = the dungeon map page
     LOG("[pane] scanning from %llx\n", (unsigned long long)addr);
@@ -557,7 +557,7 @@ static void pane_scan_tick(uint64_t frame) {
     LOG("[pane] scan done (%d objects)\n", nseen);
 }
 
-// LARECOMP_ACTOR_SCAN=<frame>:<vtable main offset hex>[:<off>=<hex byte>,...] (test): from that frame (every 60 frames,
+// NXRT_ACTOR_SCAN=<frame>:<vtable main offset hex>[:<off>=<hex byte>,...] (test): from that frame (every 60 frames,
 // 10 times) log every object whose first word is that vtable (main + offset) with a dump of its first 0x400 bytes in
 // 16-byte rows that aren't all zero; pokes write bytes into each once (after the first log). Underwater items research.
 static void actor_scan_tick(uint64_t frame) {
@@ -566,7 +566,7 @@ static void actor_scan_tick(uint64_t frame) {
     static char pokes[256];
     if (at == -2) {
         at = -1;
-        const char *e = getenv("LARECOMP_ACTOR_SCAN");
+        const char *e = getenv("NXRT_ACTOR_SCAN");
         if (e && sscanf(e, "%ld:%lx", &at, &vt) == 2) {
             const char *p = strchr(strchr(e, ':') + 1, ':');
             if (p) strlcpy(pokes, p + 1, sizeof pokes);
@@ -577,20 +577,20 @@ static void actor_scan_tick(uint64_t frame) {
     extern int kernel_data_regions(uint64_t *addr, uint64_t *size, int max);
     uint64_t ra[64], rs[64];
     int nr = kernel_data_regions(ra, rs, 64), n = 0;
-    const char *byname = getenv("LARECOMP_ACTOR_NAME");  // (instead: objects whose name at +0x398 starts with this)
+    const char *byname = getenv("NXRT_ACTOR_NAME");  // (instead: objects whose name at +0x398 starts with this)
     size_t bl = byname ? strlen(byname) : 0;
     for (int r = 0; r < nr; r++)
         for (uint64_t k = 0; k + 0x400 <= rs[r]; k += byname ? 4 : 8) {
             uint64_t o = ra[r] + k;
-            static long name_at = -1;  // LARECOMP_ACTOR_NAME_AT=<hex>: where the name sits (default 0x398; -1 anywhere)
-            if (name_at == -1) name_at = getenv("LARECOMP_ACTOR_NAME_AT") ? strtol(getenv("LARECOMP_ACTOR_NAME_AT"), NULL, 16) : 0x398;
+            static long name_at = -1;  // NXRT_ACTOR_NAME_AT=<hex>: where the name sits (default 0x398; -1 anywhere)
+            if (name_at == -1) name_at = getenv("NXRT_ACTOR_NAME_AT") ? strtol(getenv("NXRT_ACTOR_NAME_AT"), NULL, 16) : 0x398;
             if (byname ? memcmp((const void *)(uintptr_t)(o + (name_at >= 0 ? name_at : 0)), byname, bl) != 0
                        : LD64(o) != MAIN_BASE + (uint64_t)vt)
                 continue;
             if (byname) LOG("[actorscan] by name: vtable main+%llx\n", (unsigned long long)(LD64(o) - MAIN_BASE));
             n++;
             LOG("[actorscan] f%llu obj %llx\n", (unsigned long long)frame, (unsigned long long)o);
-            int back = getenv("LARECOMP_ACTOR_BACK") ? (int)strtol(getenv("LARECOMP_ACTOR_BACK"), NULL, 0) : 0;
+            int back = getenv("NXRT_ACTOR_BACK") ? (int)strtol(getenv("NXRT_ACTOR_BACK"), NULL, 0) : 0;
             for (int q = -back; q < 0x400; q += 16) {
                 const uint8_t *b = (const uint8_t *)(uintptr_t)(o + q);
                 int z = 1;
@@ -633,12 +633,12 @@ void give_item_tick(Cpu *c, uint64_t frame) {
     find_move_tick(frame);
     find_floats_tick(frame);
     addf_tick(frame);
-    {  // LARECOMP_WATCH_ADDR=<frame>:<hex lo>:<hex hi>: report host functions writing [lo,hi) (RE; one 16K page)
+    {  // NXRT_WATCH_ADDR=<frame>:<hex lo>:<hex hi>: report host functions writing [lo,hi) (RE; one 16K page)
         static long wat = -2;
         static unsigned long long wlo, whi;
         if (wat == -2) {
             wat = -1;
-            const char *e = getenv("LARECOMP_WATCH_ADDR");
+            const char *e = getenv("NXRT_WATCH_ADDR");
             if (e && sscanf(e, "%ld:%llx:%llx", &wat, &wlo, &whi) != 3) wat = -1;
         }
         if (wat >= 0 && (long)frame >= wat) {
@@ -651,11 +651,11 @@ void give_item_tick(Cpu *c, uint64_t frame) {
             wat = -1;
         }
     }
-    static long at = -2;  // LARECOMP_GIVE_ITEM=<frame>:<id>:<count>:<index>[:<auto-equip 1>][,...] (test hook)
+    static long at = -2;  // NXRT_GIVE_ITEM=<frame>:<id>:<count>:<index>[:<auto-equip 1>][,...] (test hook)
     static char spec[256];
     if (at == -2) {
         at = -1;
-        const char *e = getenv("LARECOMP_GIVE_ITEM");
+        const char *e = getenv("NXRT_GIVE_ITEM");
         if (e) { strlcpy(spec, e, sizeof spec); at = atol(e); }
     }
     if (at >= 0 && (long)frame >= at && game_in_play()) {
@@ -674,11 +674,11 @@ void give_item_tick(Cpu *c, uint64_t frame) {
         }
         at = -1;
     }
-    static long poke_at = -2;  // LARECOMP_POKE=<frame>:<hex addr>:<hex u32 OR mask>[,...] (test hook: set save bits)
+    static long poke_at = -2;  // NXRT_POKE=<frame>:<hex addr>:<hex u32 OR mask>[,...] (test hook: set save bits)
     static char poke[256];
     if (poke_at == -2) {
         poke_at = -1;
-        const char *e = getenv("LARECOMP_POKE");
+        const char *e = getenv("NXRT_POKE");
         if (e) { strlcpy(poke, e, sizeof poke); poke_at = atol(e); }
     }
     if (poke_at >= 0 && (long)frame >= poke_at && game_in_play()) {
@@ -721,7 +721,7 @@ HLE_FUNC("_ZNKSt3__120__vector_base_commonILb1EE20__throw_out_of_rangeEv", rt_ve
 
 void rt_log_resname(uint64_t p) {
     static int on = -1;
-    if (on < 0) on = getenv("LARECOMP_LOG_RESNAME") != NULL;
+    if (on < 0) on = getenv("NXRT_LOG_RESNAME") != NULL;
     if (!on || !p) return;
     const char *s = (const char *)(uintptr_t)*(uint64_t *)(uintptr_t)p;
     if (s) LOG("[resname] %.120s\n", s);

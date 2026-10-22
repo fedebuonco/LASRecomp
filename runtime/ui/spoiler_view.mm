@@ -62,7 +62,7 @@ static void line(const std::string &l) {
 bool spoiler_view_draw(const std::string &seed, float scale) {
     static bool revealed;
     static std::string revealed_for;
-    if (revealed_for != seed) { revealed = getenv("LARECOMP_SPOILER_TEST") != NULL; revealed_for = seed; }
+    if (revealed_for != seed) { revealed = getenv("NXRT_SPOILER_TEST") != NULL; revealed_for = seed; }
     if (g_loaded != seed) load(seed);
     if (ImGui::Button("< Back")) return false;
     ImGui::SameLine();

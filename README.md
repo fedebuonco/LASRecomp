@@ -19,16 +19,11 @@ native Windows, macOS and Linux application.
 > - Linux aarch64 (ARM) - **experimental**: built but untested on real hardware; reports welcome
 >   ([docs/linux.md](docs/linux.md) lists what to include)
 
-![Mabe Village in a 21:9 window: the unlocked aspect ratio shows more of the island](docs/ultrawide.jpg)
-
 > [!NOTE]
 > **No game files are included.** LAS Recomp needs your own legally obtained copy of the extracted game files of
 > *Link's Awakening* **v1.0.0**, with no updates applied. When setting up, choose a folder that contains the `exefs`
 > and `romfs` folders, or their contents. Instructions on how to obtain these files will **NOT** be provided.
 > On first launch the app sets up what it needs, including the actual recompilation locally. No game files, assets or fonts are included.
-> The screenshot shows the start screen after setup; no Nintendo artwork is included until provided by the user.
-
-![The start screen: choose vanilla or a randomizer seed, set up your game files, settings](docs/start_screen.jpg)
 
 ## Project Discord
 https://discord.gg/DhrgdYqdcY
@@ -161,7 +156,7 @@ Where files live (game files, saves, seeds, settings, caches, imported fonts):
 - Linux: `~/.local/share/lasrecomp/` (`$XDG_DATA_HOME/lasrecomp`); the log is `lasrecomp.log` there when started
   without a terminal.
 - Dev / portable mode: if the folder you start from has `extracted/` (a source checkout), that folder is used, as above.
-- `LARECOMP_DATA_ROOT=<dir>` overrides all of these.
+- `NXRT_DATA_ROOT=<dir>` overrides all of these.
 
 ## Credits
 

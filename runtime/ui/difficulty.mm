@@ -11,7 +11,7 @@
 
 extern "C" {
 #include "../hle.h"
-#include "../settings.h"
+#include "../las_settings.h"
 int game_in_play(void);
 int rt_hookshot_seed_forced(void);  // hle/hookshot.c
 int rt_no_buff_seed_forced(void);   // hle/qol.c
@@ -24,25 +24,25 @@ extern "C" int rt_hero_mode(void) { return *(volatile uint8_t *)(uintptr_t)HERO_
 
 // damage in quarter hearts before the Hero Mode shift; returns the damage to subtract
 extern "C" int32_t rt_damage(int32_t dmg, int32_t shift) {
-    static int envd = -1;  // LARECOMP_DAMAGE=<mult> / ohko: test override
+    static int envd = -1;  // NXRT_DAMAGE=<mult> / ohko: test override
     if (envd < 0) {
-        const char *e = getenv("LARECOMP_DAMAGE");
+        const char *e = getenv("NXRT_DAMAGE");
         envd = e != NULL;
         if (e) {
-            if (!strcmp(e, "ohko")) g_settings.diff_ohko = true;
-            else g_settings.diff_damage = (float)atof(e);
+            if (!strcmp(e, "ohko")) g_las.diff_ohko = true;
+            else g_las.diff_damage = (float)atof(e);
         }
     }
     int32_t base = dmg << (shift & 31);
     if (base <= 0) return base;  // healing / zero: untouched
-    if (g_settings.diff_ohko) return 999;
-    float m = g_settings.diff_damage > 0 ? g_settings.diff_damage : 1.0f;
+    if (g_las.diff_ohko) return 999;
+    float m = g_las.diff_damage > 0 ? g_las.diff_damage : 1.0f;
     int32_t r = (int32_t)lroundf((float)base * m);
-    if (ENV("LARECOMP_LOG_DAMAGE")) LOG("[difficulty] damage %d (shift %d) -> %d\n", dmg, shift, r < 1 ? 1 : r);
+    if (ENV("NXRT_LOG_DAMAGE")) LOG("[difficulty] damage %d (shift %d) -> %d\n", dmg, shift, r < 1 ? 1 : r);
     return r < 1 ? 1 : r;  // at least a quarter heart
 }
 
-// Once per presented frame (from save_editor_frame). (The "Hero Mode on every file" lever, g_settings.diff_hero, left
+// Once per presented frame (from save_editor_frame). (The "Hero Mode on every file" lever, g_las.diff_hero, left
 // the Gameplay tab - user, 2026-10-11 - and is no longer applied, so nobody is stuck with it; a file started in Hero
 // Mode keeps the game's own flag.)
 extern "C" void difficulty_frame(void) {}
@@ -56,7 +56,7 @@ extern "C" void difficulty_draw(float scale) {
         opt_disable_next();
         opt_toggle("Hookshot anything", &on, false,
                    "On: this randomizer seed was made with Hookshot Anything, and its logic counts on it.");
-    } else if (opt_toggle("Hookshot anything", &g_settings.cheat_hookshot, false,
+    } else if (opt_toggle("Hookshot anything", &g_las.cheat_hookshot, false,
                           "The hookshot latches onto any wall or object, not only its targets. Randomizer seeds made "
                           "with Hookshot Anything always have it on."))
         settings_save();
@@ -65,11 +65,11 @@ extern "C" void difficulty_draw(float scale) {
         opt_disable_next();
         opt_toggle("No Guardian Acorns / Pieces of Power", &on, false,
                    "On: this randomizer seed was made with it.");
-    } else if (opt_toggle("No Guardian Acorns / Pieces of Power", &g_settings.no_buff_drops, false,
+    } else if (opt_toggle("No Guardian Acorns / Pieces of Power", &g_las.no_buff_drops, false,
                           "Defeating enemies in a row never drops a Guardian Acorn or a Piece of Power. Randomizer seeds "
                           "made with this option always have it on."))
         settings_save();
-    if (opt_toggle("Mirror mode", &g_settings.mirror_mode, false,
+    if (opt_toggle("Mirror mode", &g_las.mirror_mode, false,
                    "Mirrors the game world."))
         settings_save();
     opt_section("Difficulty");
@@ -77,13 +77,25 @@ extern "C" void difficulty_draw(float scale) {
     static const float mult[] = {0.5f, 1, 2, 3, 4, 5, 6, 7, 8};
     int di = 1;  // (the closest step to the setting: older files may hold any multiplier)
     for (int i = 0; i < 9; i++)
-        if (fabsf(mult[i] - g_settings.diff_damage) < fabsf(mult[di] - g_settings.diff_damage)) di = i;
+        if (fabsf(mult[i] - g_las.diff_damage) < fabsf(mult[di] - g_las.diff_damage)) di = i;
     if (opt_choice("Damage taken", &di, names, 9, 1,
                    "How much damage Link takes from every hit: half, the game's own, or up to eight times as much.")) {
-        g_settings.diff_damage = mult[di];
+        g_las.diff_damage = mult[di];
         settings_save();
     }
-    if (opt_toggle("One-hit KO", &g_settings.diff_ohko, false, "Any hit defeats Link, whatever his hearts."))
+    if (opt_toggle("One-hit KO", &g_las.diff_ohko, false, "Any hit defeats Link, whatever his hearts."))
+        settings_save();
+    // (these were rows on the system Controls / Video tabs: the game's options now all live in the game's tab)
+    opt_section("Movement");
+    if (opt_toggle("360-degree movement", &g_las.move_360, false,
+                   "Link walks in the exact direction of the stick instead of snapping to 8 directions."))
+        settings_save();
+    opt_section("Display");
+    if (opt_toggle("Remove blur", &g_las.blur_removal, false,
+                   "Turns off the tilt-shift blur at the top and bottom of the screen."))
+        settings_save();
+    if (opt_toggle("Hide Hero Mode icon", &g_las.hide_hero_icon, false,
+                   "Hides the Hero Mode emblem in the corner of the screen while playing a Hero Mode file."))
         settings_save();
     opt_end();
 }

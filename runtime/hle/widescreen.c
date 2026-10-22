@@ -38,7 +38,7 @@ float widescreen_effect_stretch(uint64_t fs_hash) {
 // Off in rooms that should keep 16:9 framing (interiors, dungeons) -- see widescreen_update.
 static bool g_allowed = true;
 static bool g_indoor;
-bool widescreen_allowed(void) { return g_allowed && g_settings.aspect == ASPECT_UNLOCKED && !ENV("LARECOMP_NO_WIDESCREEN"); }
+bool widescreen_allowed(void) { return g_allowed && g_settings.aspect == ASPECT_UNLOCKED && !ENV("NXRT_NO_WIDESCREEN"); }
 void widescreen_set_allowed(bool on) { g_allowed = on; }
 
 // Interiors and dungeons use cameras that never load the patched overworld aspect (site 0). Count
@@ -55,14 +55,14 @@ void widescreen_frame_end(uint64_t frame) {
     bool was = g_indoor;
     if (!g_indoor && g_indoor_streak >= 3) g_indoor = true;
     if (g_indoor && g_outdoor_streak >= 1) g_indoor = false;
-    if (was != g_indoor && ENV("LARECOMP_LOG_INDOOR"))
+    if (was != g_indoor && ENV("NXRT_LOG_INDOOR"))
         LOG("[widescreen] %s at frame %llu\n", g_indoor ? "interior (16:9 framing)" : "overworld (wide)", (unsigned long long)frame);
 }
 
 float rt_aspect_site(int site) {
     if (site == 0) { extern uint64_t renderer_present_count(void); g_site0_frame = renderer_present_count(); }
     static long mask = -2;
-    if (mask == -2) mask = getenv("LARECOMP_ASPECT_SITES") ? strtol(getenv("LARECOMP_ASPECT_SITES"), NULL, 0) : -1;
+    if (mask == -2) mask = getenv("NXRT_ASPECT_SITES") ? strtol(getenv("NXRT_ASPECT_SITES"), NULL, 0) : -1;
     float base = 16.0f / 9.0f;
     if (mask != -1 && !(mask & (1L << site))) return base;
     return base * g_wide;  // the output's aspect (wider or narrower than 16:9)
@@ -71,7 +71,7 @@ float rt_aspect_site(int site) {
 // Culling aspect: the game's own value (camera field), widened like the camera.
 float rt_cull_aspect(float orig) {
     static float last = -1;
-    if (orig != last && ENV("LARECOMP_LOG_CULL")) { LOG("[widescreen] culling aspect field %f\n", orig); last = orig; }
+    if (orig != last && ENV("NXRT_LOG_CULL")) { LOG("[widescreen] culling aspect field %f\n", orig); last = orig; }
     return rt_aspect_site(6) * (orig > 0.1f && orig < 10.0f ? orig / (16.0f / 9.0f) : 1.0f);
 }
 
@@ -79,7 +79,7 @@ float rt_cull_aspect(float orig) {
 // horizontal view stays what the game shows at 16:9.
 float rt_fovy(float orig) {
     static float last = -1;
-    if (orig != last && ENV("LARECOMP_LOG_CULL")) { LOG("[widescreen] fovy field %f\n", orig); last = orig; }
+    if (orig != last && ENV("NXRT_LOG_CULL")) { LOG("[widescreen] fovy field %f\n", orig); last = orig; }
     if (g_wide >= 1.0f || !(orig > 0)) return orig;
     bool degrees = orig > 3.2f;  // radians otherwise
     float half = (degrees ? orig * (float)M_PI / 180.0f : orig) * 0.5f;
@@ -92,7 +92,7 @@ static uint64_t g_indoor_frame;
 float rt_indoor_aspect(void) {
     extern uint64_t renderer_present_count(void);
     uint64_t f = renderer_present_count();
-    if (ENV("LARECOMP_LOG_INDOOR") && f / 60 != g_indoor_frame / 60) LOG("[widescreen] indoor at frame %llu\n", (unsigned long long)f);
+    if (ENV("NXRT_LOG_INDOOR") && f / 60 != g_indoor_frame / 60) LOG("[widescreen] indoor at frame %llu\n", (unsigned long long)f);
     g_indoor_frame = f;
     return 16.0f / 9.0f;
 }
@@ -129,7 +129,7 @@ bool widescreen_frame_boxed(uint64_t frame) {
     // (a blurred copy in the left bar, user 2026-10-09)
     extern int game_in_play(void);
     bool b = g_backdrop_frame == frame || in || frame < interior_until || !game_in_play();
-    if (b != last && ENV("LARECOMP_LOG_INDOOR")) LOG("[widescreen] boxed %d at frame %llu\n", b, (unsigned long long)frame);
+    if (b != last && ENV("NXRT_LOG_INDOOR")) LOG("[widescreen] boxed %d at frame %llu\n", b, (unsigned long long)frame);
     last = b;
     return b;
 }
@@ -138,7 +138,7 @@ bool widescreen_frame_boxed(uint64_t frame) {
 // room itself: the image is cut at the room's outer walls (the camera still scrolls and stops as at 16:9, so near
 // an end wall that side is black) instead of at the 16:9 box. Single-screen rooms stay boxed.
 // The current camera zone (the level's zone record: id, AABB min at +0x10, max at +0x20, camera params at +0x30)
-// is reached through [[sdk+0xcf9e38]+0x680] (found 2026-10-09 by pointer scans, LARECOMP_FIND_FLOATS_PATH);
+// is reached through [[sdk+0xcf9e38]+0x680] (found 2026-10-09 by pointer scans, NXRT_FIND_FLOATS_PATH);
 // the camera's view-projection comes from the scene UBO (vertex slot 5: view, projection, view-projection).
 static float g_vp[16];  // rows
 bool g_room_wide;  // the last presented frame showed a room wider than 16:9
@@ -177,7 +177,7 @@ enum { ROOM_KEEP, ROOM_BOX, ROOM_CROP, ROOM_FULL };
 static int room_crop(uint64_t frame, double shape, float *u0, float *u1) {
     float lo[3], hi[3];
     uint32_t id;
-    if (ENV("LARECOMP_NO_ROOM_WIDE")) return ROOM_BOX;
+    if (ENV("NXRT_NO_ROOM_WIDE")) return ROOM_BOX;
     if (g_vp_frame > frame || g_vp_frame + 4 < frame) return g_vp_frame + 30 < frame ? ROOM_BOX : ROOM_KEEP;  // (menus: no scene)
     if (!current_zone(lo, hi, &id)) return ROOM_FULL;
     const float *r0 = g_vp, *r1 = g_vp + 4, *r3 = g_vp + 12;
@@ -218,7 +218,7 @@ static int room_crop(uint64_t frame, double shape, float *u0, float *u1) {
     }
     static uint32_t last_id = ~0u;
     static int last_r = -1;
-    if ((id != last_id || r != last_r) && ENV("LARECOMP_LOG_INDOOR"))
+    if ((id != last_id || r != last_r) && ENV("NXRT_LOG_INDOOR"))
         LOG("[widescreen] zone %u x %.1f..%.1f z %.1f..%.1f%s, camera x %.1f: %s at frame %llu\n", id, lo[0], hi[0], lo[2],
             hi[2], side ? " (side view)" : "", c[0], r == ROOM_CROP ? "crop" : r == ROOM_BOX ? "box" : "full (stale zone)",
             (unsigned long long)frame);

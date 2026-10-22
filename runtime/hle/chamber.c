@@ -133,8 +133,8 @@ static uint64_t chamber_setup(Cpu *c) {
     pthread_mutex_unlock(&g_lock);
     // mode bytes + challenge index as a Dampe challenge sets them (seen with challenge 0 loaded): the loader reads
     // the challenge's MapPieceTheme row (time limit, hearts, reward) through +0x15e4; -1 there crashes it
-    int m0 = 3, m1 = 3;  // LARECOMP_CHAMBER_MODE=a,b overrides (experiments)
-    if (getenv("LARECOMP_CHAMBER_MODE")) sscanf(getenv("LARECOMP_CHAMBER_MODE"), "%d,%d", &m0, &m1);
+    int m0 = 3, m1 = 3;  // NXRT_CHAMBER_MODE=a,b overrides (experiments)
+    if (getenv("NXRT_CHAMBER_MODE")) sscanf(getenv("NXRT_CHAMBER_MODE"), "%d,%d", &m0, &m1);
     *(uint8_t *)(uintptr_t)(mgr + 0x15e0) = (uint8_t)m0;
     *(uint8_t *)(uintptr_t)(mgr + 0x15e1) = (uint8_t)m1;
     *(uint32_t *)(uintptr_t)(mgr + 0x15e4) = 0;
@@ -151,9 +151,9 @@ static void chamber_restore_rows(void) {
 
 static void set_event_flag(int i) { *(uint8_t *)(uintptr_t)(0x7001CBB220ull + 0x5DC0 + (i >> 3)) |= (uint8_t)(1 << (i & 7)); }
 
-// Chamber-engine prototype: OFF unless a test asks for it (LARECOMP_CHAMBER_TAILCAVE=<layout file>). Generated
+// Chamber-engine prototype: OFF unless a test asks for it (NXRT_CHAMBER_TAILCAVE=<layout file>). Generated
 // dungeons are being rebuilt as real dungeon levels (notes/PLAN.md); this stays only as reverse-engineering notes.
-static const char *layout_path(void) { return getenv("LARECOMP_CHAMBER_TAILCAVE"); }
+static const char *layout_path(void) { return getenv("NXRT_CHAMBER_TAILCAVE"); }
 
 static void request_set(uint64_t req, const char *level, const char *loc) {
     size_t ll = strlen(level), lc = strlen(loc);
@@ -171,7 +171,7 @@ static void request_set(uint64_t req, const char *level, const char *loc) {
 void rt_level_request(Cpu *c) {
     uint64_t req = c->x[0];
     const char *lv = (const char *)(uintptr_t)(req + 0xa8);
-    if (ENV("LARECOMP_LOG_LEVELREQ")) LOG("[levelreq] %s / %s\n", lv, (const char *)(uintptr_t)(req + 0xf0));
+    if (ENV("NXRT_LOG_LEVELREQ")) LOG("[levelreq] %s / %s\n", lv, (const char *)(uintptr_t)(req + 0xf0));
     if (!g_run_active && layout_path() && !strcmp(lv, "Lv01TailCave") && chamber_load_file(layout_path()) == 0) {
         g_pending = 0;
         uint64_t saved[31], sp = c->sp, pc = c->pc;
@@ -212,15 +212,15 @@ int rt_adv_exit_choice(void) {
 
 // Game main thread, once per frame (from the controller read).
 void chamber_game_tick(Cpu *c, uint64_t frame) {
-    static long test_at = -2;  // LARECOMP_CHAMBER_AT=<frame>:<layout file> (test hook)
+    static long test_at = -2;  // NXRT_CHAMBER_AT=<frame>:<layout file> (test hook)
     if (test_at == -2) {
         test_at = -1;
-        const char *e = getenv("LARECOMP_CHAMBER_AT");
+        const char *e = getenv("NXRT_CHAMBER_AT");
         if (e) test_at = atol(e);
     }
     if (test_at >= 0 && (long)frame >= test_at && game_in_play()) {
         test_at = -1;
-        const char *e = strchr(getenv("LARECOMP_CHAMBER_AT"), ':');
+        const char *e = strchr(getenv("NXRT_CHAMBER_AT"), ':');
         if (e) chamber_load_file(e + 1);
     }
     if (!g_pending) return;

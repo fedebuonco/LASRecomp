@@ -19,7 +19,7 @@
 extern "C" {
 #include "../hle.h"
 #include "../rando.h"
-#include "../settings.h"
+#include "../las_settings.h"
 uint64_t renderer_present_count(void);
 int kernel_data_regions(uint64_t *addr, uint64_t *size, int max);
 const char *souls_at(int i, int *kind, bool *owned);  // runtime/hle/souls.c
@@ -39,11 +39,11 @@ extern "C" void rt_map_page_tick(Cpu *c) {
     g_map_obj = c->x[0];
     map_debug_dump(f);
 }
-// LARECOMP_MAP_DUMP=<frame>[,<frame>...]: save the map page object (0x4000 bytes) to build/mapobj_<frame>.bin (RE)
+// NXRT_MAP_DUMP=<frame>[,<frame>...]: save the map page object (0x4000 bytes) to build/mapobj_<frame>.bin (RE)
 static void map_debug_dump(uint64_t f) {
     static char spec[256];
     static int init;
-    if (!init) { init = 1; const char *e = getenv("LARECOMP_MAP_DUMP"); if (e) snprintf(spec, sizeof spec, "%s", e); }
+    if (!init) { init = 1; const char *e = getenv("NXRT_MAP_DUMP"); if (e) snprintf(spec, sizeof spec, "%s", e); }
     if (!spec[0]) return;
     char tmp[256];
     snprintf(tmp, sizeof tmp, "%s", spec);
@@ -307,7 +307,7 @@ static void solve(void) {
 }
 
 static void debug_dump(void) {
-    if (!ENV("LARECOMP_LOG_TRACKER")) return;
+    if (!ENV("NXRT_LOG_TRACKER")) return;
     int nd = 0;
     for (auto &n : g_nodes) nd += A(n.id) > 0;
     LOG("[tracker] solved: %d/%zu nodes; mabe %d tarin %d sword %d mabe-bushes %d\n", nd, g_nodes.size(), A(tok("mabe")),
@@ -327,7 +327,7 @@ static bool map_page_shown(void) {
 }
 
 extern "C" bool tracker_overlay_wanted(void) {
-    if (!rando_seed_dir() || !g_settings.tracker || !map_page_shown()) return false;
+    if (!rando_seed_dir() || !g_las.tracker || !map_page_shown()) return false;
     if (!g_loaded) load();
     return g_loaded > 0;
 }

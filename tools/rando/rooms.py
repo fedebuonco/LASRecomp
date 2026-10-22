@@ -313,17 +313,17 @@ def transplant(romfs, out_romfs, src, dst, merge_textures=True):
     # The roof / room-fade actor (black cover for rooms Link isn't in) is shaped for ONE room: the moved room's own
     # breaks the level (black screen), and the destination cell's original one is shaped for the room that used
     # to be there and blacks out parts of the new room and its neighbours (seen 2026-10-08: Turtle Rock 06A half
-    # black next to a cell carrying Tail Cave's 05F fade). Transplanted rooms get none (opt-in: LARECOMP_DST_ROOF).
+    # black next to a cell carrying Tail Cave's 05F fade). Transplanted rooms get none (opt-in: NXRT_DST_ROOF).
     # (2026-10-08) retest: with actor roomIDs restamped per cell (the real cause of the black screens), the moved
-    # room's OWN roof may work -> LARECOMP_ROOF=src keeps it (moved with the room)
-    keep_src = os.environ.get('LARECOMP_ROOF', 'src') == 'src'
+    # room's OWN roof may work -> NXRT_ROOF=src keeps it (moved with the room)
+    keep_src = os.environ.get('NXRT_ROOF', 'src') == 'src'
     roof = []
     if keep_src:
         pass
-    elif os.path.exists(dst_path) and os.environ.get('LARECOMP_DST_ROOF'):
+    elif os.path.exists(dst_path) and os.environ.get('NXRT_DST_ROOF'):
         roof = [a for a in leb.Room(open(dst_path, 'rb').read()).actors if a.type == ROOF]
-    elif os.environ.get('LARECOMP_ROOF_TEMPLATE'):  # (experiment) a new cell borrows another cell's roof actor
-        tpl = os.environ['LARECOMP_ROOF_TEMPLATE']
+    elif os.environ.get('NXRT_ROOF_TEMPLATE'):  # (experiment) a new cell borrows another cell's roof actor
+        tpl = os.environ['NXRT_ROOF_TEMPLATE']
         roof = [a for a in leb.Room(open(_leb_path(romfs, tpl), 'rb').read()).actors if a.type == ROOF]
         ox, oz = cell_origin(tpl)
         for a in roof:

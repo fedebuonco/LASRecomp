@@ -16,7 +16,7 @@
 #include <sys/stat.h>
 
 #include "hle.h"
-#include "settings.h"
+#include "las_settings.h"
 
 #define MAIN_BASE 0x7000000000ull
 #define WORD_TAB 256
@@ -91,7 +91,7 @@ static void load_pchtxt(const char *path) {
 
 static void init(void) {
     settings_load();
-    const char *seed = getenv("LARECOMP_RANDO_SEED") ? getenv("LARECOMP_RANDO_SEED") : g_settings.rando_seed;
+    const char *seed = getenv("NXRT_RANDO_SEED") ? getenv("NXRT_RANDO_SEED") : g_las.rando_seed;
     if (!seed || !seed[0]) return;
     snprintf(g_seed_dir, sizeof g_seed_dir, "rando/%s", seed);
     struct stat sb;
@@ -123,11 +123,11 @@ void rando_boot(void) {
 }
 
 // Pick the seed for the next boot ("" = vanilla) and remember it (larecomp.ini); a choice made in the game wins over
-// LARECOMP_RANDO_SEED (test runs).
+// NXRT_RANDO_SEED (test runs).
 void rando_select(const char *seed) {
-    strlcpy(g_settings.rando_seed, seed ? seed : "", sizeof g_settings.rando_seed);
+    strlcpy(g_las.rando_seed, seed ? seed : "", sizeof g_las.rando_seed);
     settings_save();
-    unsetenv("LARECOMP_RANDO_SEED");
+    unsetenv("NXRT_RANDO_SEED");
 }
 
 uint32_t rando_word(uint64_t addr) {
@@ -149,7 +149,7 @@ bool rando_romfs_override(const char *path, char *out, size_t cap) {
 // Items page: hide the item explanation text in randomizer seeds (tools/patches.py ITEM_EXPLANATION_SITE); it
 // overlaps the inventory overlay's dungeon-key / trade rows and the player knows the items.
 int rt_hide_item_explanation(void) {
-    static int env = -1;  // LARECOMP_SHOW_ITEM_TEXT=1 keeps it
-    if (env < 0) env = getenv("LARECOMP_SHOW_ITEM_TEXT") != NULL;
+    static int env = -1;  // NXRT_SHOW_ITEM_TEXT=1 keeps it
+    if (env < 0) env = getenv("NXRT_SHOW_ITEM_TEXT") != NULL;
     return !env && rando_seed_dir() != NULL;
 }

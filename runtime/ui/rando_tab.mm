@@ -18,18 +18,18 @@
 
 extern "C" {
 #include "../hle.h"
-#include "../paths.h"
+#include "paths.h"
 #include "../rando.h"
-#include "../settings.h"
+#include "../las_settings.h"
 extern const char *g_romfs_dir;
 extern int g_start_screen;  // hle/warp.c
-void launcher_play_seed(const char *seed);  // ui/launcher.mm
+void launcher_play_profile(const char *seed);  // ui/launcher.mm
 extern char g_window_shot_request[256];  // runtime/hle/hookshot.c (test shots)
 }
 
 // Play a seed ("" = vanilla): in game the game reboots on it; on the start screen (Settings) the game starts with it
 static void play_seed(const char *name) {
-    if (g_start_screen) { launcher_play_seed(name); return; }
+    if (g_start_screen) { launcher_play_profile(name); return; }
     rando_select(name);
     rt_request_reboot(RT_REBOOT_GAME);
 }
@@ -261,11 +261,11 @@ static std::string clean_name(const char *in) {  // a seed name as a folder name
 }
 
 // The seed generator: the standalone helper (tools/rando/rando_gen.spec, `make rando-helper`; no Python needed) next to
-// the executable or in the .app's Resources (LARECOMP_RANDO_GEN=<path>: that one), else (source tree) the LAS venv
+// the executable or in the .app's Resources (NXRT_RANDO_GEN=<path>: that one), else (source tree) the LAS venv
 // running tools/rando/las_headless.py. Either takes <romfs> <seed dir> <request.json> and prints
 // `stage <fraction> <label>` lines.
 static std::vector<std::string> generator_cmd(void) {
-    if (const char *g = getenv("LARECOMP_RANDO_GEN")) return {g};
+    if (const char *g = getenv("NXRT_RANDO_GEN")) return {g};
     char p[1024], s[1024];  // (runtime/paths.h: <exe dir>/rando-gen/, <exe dir>/../Resources/rando-gen/, the source tree)
     if (rt_resource("rando-gen/rando-gen" PLAT_EXE_SUFFIX, NULL, p, sizeof p)) return {p};
     if (rt_resource(NULL, "third_party/LAS-Randomizer/" PLAT_VENV_PYTHON, p, sizeof p) &&
@@ -395,9 +395,9 @@ static void gen_overlay(float scale) {
     if (!ImGui::BeginPopupModal("##gen", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
                                                    ImGuiWindowFlags_NoSavedSettings))
         return;
-    // test hook: LARECOMP_RANDO_GEN_SHOTS=<prefix> saves <prefix>_gen.png (past 30%) and <prefix>_done.png, then
-    // presses Play Now (with LARECOMP_RANDO_GEN_TEST)
-    static const char *shots = getenv("LARECOMP_RANDO_GEN_SHOTS");
+    // test hook: NXRT_RANDO_GEN_SHOTS=<prefix> saves <prefix>_gen.png (past 30%) and <prefix>_done.png, then
+    // presses Play Now (with NXRT_RANDO_GEN_TEST)
+    static const char *shots = getenv("NXRT_RANDO_GEN_SHOTS");
     static int shot_state, done_frames;
     bool test_play = false;
     if (shots) {
@@ -457,14 +457,14 @@ static std::string g_spoiler_seed;  // seed whose spoiler page is open
 extern "C" void rando_tab_draw(float scale) {
     (void)scale;
     if (!g_scanned) scan();
-    static bool spoiler_test;  // LARECOMP_SPOILER_TEST=<seed>: open that seed's spoiler page (test hook)
-    if (!spoiler_test && getenv("LARECOMP_SPOILER_TEST")) { spoiler_test = true; g_spoiler_seed = getenv("LARECOMP_SPOILER_TEST"); }
+    static bool spoiler_test;  // NXRT_SPOILER_TEST=<seed>: open that seed's spoiler page (test hook)
+    if (!spoiler_test && getenv("NXRT_SPOILER_TEST")) { spoiler_test = true; g_spoiler_seed = getenv("NXRT_SPOILER_TEST"); }
     if (!g_spoiler_seed.empty()) {  // the spoiler page replaces the tab until Back
         if (!spoiler_view_draw(g_spoiler_seed, scale)) g_spoiler_seed.clear();
         return;
     }
-    static bool test_once;  // LARECOMP_RANDO_GEN_TEST=1|<name>[:<seed ID>]: generate a seed (with that ID's options)
-    if (const char *t = getenv("LARECOMP_RANDO_GEN_TEST"); !test_once && t) {  // as soon as the tab is shown (test hook)
+    static bool test_once;  // NXRT_RANDO_GEN_TEST=1|<name>[:<seed ID>]: generate a seed (with that ID's options)
+    if (const char *t = getenv("NXRT_RANDO_GEN_TEST"); !test_once && t) {  // as soon as the tab is shown (test hook)
         test_once = true;
         std::string nm = t;
         if (size_t c = nm.find(':'); c != std::string::npos) {
@@ -587,7 +587,7 @@ extern "C" void rando_tab_draw(float scale) {
     opt_toggle("Treat Tunics as Upgrades", &g_opts.tunic_upgrades, false,
                "The red and blue tunics add up instead of replacing each other: the blue one always halves the damage "
                "Link takes, the red one always strengthens his attacks, and with both he has both.");
-    if (opt_toggle("Check tracker on overworld map", &g_settings.tracker, true,
+    if (opt_toggle("Check tracker on overworld map", &g_las.tracker, true,
                    "The overworld map marks the checks you have and haven't done yet."))
         settings_save();
 
@@ -726,13 +726,13 @@ extern "C" void rando_tab_draw(float scale) {
     }
     {  // its doorway letters on the dungeon map (runtime/ui/chaos_overlay.mm; a player setting, not part of the seed):
        // on = as you explore, every pair once you have the map (CHAOS_LETTERS_MAP); off = none
-        bool on = g_settings.chaos_letters != CHAOS_LETTERS_OFF;
+        bool on = g_las.chaos_letters != CHAOS_LETTERS_OFF;
         opt_indent(1);
         if (!g_opts.room_shuffle) opt_disable_next();
         if (opt_toggle("Map tracks door connections", &on, true,
                        "Matching letters (A-A, B-B...) on the dungeon map show which doorways connect: a pair appears once "
                        "you've been through either end, and every pair of the dungeon once you have its map.")) {
-            g_settings.chaos_letters = on ? CHAOS_LETTERS_MAP : CHAOS_LETTERS_OFF;
+            g_las.chaos_letters = on ? CHAOS_LETTERS_MAP : CHAOS_LETTERS_OFF;
             settings_save();
         }
         opt_indent(-1);

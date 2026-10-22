@@ -8,7 +8,8 @@
 
 #include "../hle.h"
 #include "../rando.h"
-#include "../settings.h"
+#include "../las_settings.h"
+#include "nx_input.h"
 
 #define MAIN_BASE 0x7000000000ull
 
@@ -16,12 +17,12 @@
 // one of 8 directions, returned in w0 as an angle (full turn = 2^32, 0 = down, 2^30 = right). With the setting on
 // it returns the stick's own angle (returns 1: the original function is skipped).
 int rt_snap_dir(Cpu *c) {
-    static int env = -1, logn;  // LARECOMP_MOVE_360=0/1: test override; LARECOMP_LOG_SNAP: log some calls
-    if (env < 0) { const char *e = getenv("LARECOMP_MOVE_360"); env = e ? atoi(e) != 0 : 2; logn = ENV("LARECOMP_LOG_SNAP") ? 0 : -1; }
+    static int env = -1, logn;  // NXRT_MOVE_360=0/1: test override; NXRT_LOG_SNAP: log some calls
+    if (env < 0) { const char *e = getenv("NXRT_MOVE_360"); env = e ? atoi(e) != 0 : 2; logn = ENV("NXRT_LOG_SNAP") ? 0 : -1; }
     float x, y;
     memcpy(&x, &c->v[1], 4);
     memcpy(&y, &c->v[2], 4);
-    bool on = env == 2 ? g_settings.move_360 : env;
+    bool on = env == 2 ? g_las.move_360 : env;
     static bool inner;
     if (inner) return 0;
     double turns = atan2(y, x) / (2 * M_PI) + 0.25;  // (the mod: floor(degrees) + 90)
@@ -72,9 +73,9 @@ static bool seed_no_buff(void) {
 }
 // on: the Gameplay tab's lever, or the seed was made with it
 static bool no_buff(void) {
-    const char *e = getenv("LARECOMP_NO_BUFF");  // test: 1 / 0 forces it
+    const char *e = getenv("NXRT_NO_BUFF");  // test: 1 / 0 forces it
     if (e) return atoi(e) != 0;
-    return g_settings.no_buff_drops || seed_no_buff();
+    return g_las.no_buff_drops || seed_no_buff();
 }
 // The seed forces it (the Gameplay toggle is greyed out). On the start screen: the seed PLAY would start, from its
 // folder (rando_seed_dir() would apply its patches before the game is loaded) - as rt_hookshot_seed_forced.
@@ -83,11 +84,11 @@ int rt_no_buff_seed_forced(void) {
     if (!g_start_screen) return seed_no_buff();
     static char last[128] = "\x01";
     static int on;
-    if (strcmp(last, g_settings.rando_seed)) {
-        snprintf(last, sizeof last, "%s", g_settings.rando_seed);
+    if (strcmp(last, g_las.rando_seed)) {
+        snprintf(last, sizeof last, "%s", g_las.rando_seed);
         char dir[256];
-        snprintf(dir, sizeof dir, "rando/%s", g_settings.rando_seed);
-        on = g_settings.rando_seed[0] && dir_no_buff(dir);
+        snprintf(dir, sizeof dir, "rando/%s", g_las.rando_seed);
+        on = g_las.rando_seed[0] && dir_no_buff(dir);
     }
     return on;
 }
@@ -145,10 +146,10 @@ int rt_underwater_skip_owned(uint64_t actor) {
 RT_ON_RESET(underwater_reset) { g_underwater = -1; }
 
 int rt_buff_replace(int allow) {
-    // LARECOMP_BUFF_PRIME=1 (test): every roll finds the Guardian Acorn counter full; =2: and every row allows buffs
+    // NXRT_BUFF_PRIME=1 (test): every roll finds the Guardian Acorn counter full; =2: and every row allows buffs
     // (grass then drops Acorns unless the option is on)
     static int test = -1;
-    if (test < 0) test = ENV("LARECOMP_BUFF_PRIME") ? atoi(ENV("LARECOMP_BUFF_PRIME")) : 0;
+    if (test < 0) test = ENV("NXRT_BUFF_PRIME") ? atoi(ENV("NXRT_BUFF_PRIME")) : 0;
     if (test) {
         uint64_t ps = LD64(MAIN_BASE + 0x1CC1368);  // PlayerStatus*
         if (ps) ST8(ps + 0xa5, 14);
@@ -185,13 +186,13 @@ static bool apply_tilt(int removed) {  // false: not set up yet (or not the name
     return true;
 }
 
-// LARECOMP_SETTING_AT="frame:key=value,..." (test): flip an in-game menu toggle at that presented frame, as the menu
+// NXRT_SETTING_AT="frame:key=value,..." (test): flip an in-game menu toggle at that presented frame, as the menu
 // would (move_360, blur_removal, dpad_move).
 static void setting_at_tick(void) {
     static const char *spec;
     static int init;
     static uint64_t last;
-    if (!init) { init = 1; spec = getenv("LARECOMP_SETTING_AT"); }
+    if (!init) { init = 1; spec = getenv("NXRT_SETTING_AT"); }
     if (!spec) return;
     extern uint64_t renderer_present_count(void);
     uint64_t now = renderer_present_count();
@@ -203,8 +204,8 @@ static void setting_at_tick(void) {
         char key[32];
         int v;
         if (sscanf(tok, "%lu:%31[a-z_0-9]=%d", &f, key, &v) != 3 || f <= last || f > now) continue;
-        bool *b = !strcmp(key, "move_360") ? &g_settings.move_360 : !strcmp(key, "blur_removal") ? &g_settings.blur_removal :
-                  !strcmp(key, "dpad_move") ? &g_settings.dpad_move : NULL;
+        bool *b = !strcmp(key, "move_360") ? &g_las.move_360 : !strcmp(key, "blur_removal") ? &g_las.blur_removal :
+                  !strcmp(key, "dpad_move") ? &g_input_settings.dpad_move : NULL;
         if (b) { *b = v != 0; LOG("[qol] test: f%llu %s = %d\n", (unsigned long long)now, key, v); }
     }
     last = now;
@@ -213,9 +214,9 @@ static void setting_at_tick(void) {
 // Game thread, once per frame (runtime/hle/input.c).
 void qol_tick(void) {
     setting_at_tick();
-    static int env = -1;  // LARECOMP_BLUR_REMOVAL=0/1: test override
-    if (env < 0) { const char *e = getenv("LARECOMP_BLUR_REMOVAL"); env = e ? atoi(e) != 0 : 2; }
-    int want = env == 2 ? g_settings.blur_removal : env;
+    static int env = -1;  // NXRT_BLUR_REMOVAL=0/1: test override
+    if (env < 0) { const char *e = getenv("NXRT_BLUR_REMOVAL"); env = e ? atoi(e) != 0 : 2; }
+    int want = env == 2 ? g_las.blur_removal : env;
     if (want != g_tilt_applied && apply_tilt(want)) {
         LOG("[qol] blur removal %s\n", want ? "on" : "off");
         g_tilt_applied = want;

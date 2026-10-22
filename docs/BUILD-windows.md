@@ -49,5 +49,5 @@ with `extracted/` in the starting folder keeps using that folder instead.
 ## Tests
 - `tools/test_translate.sh`: shader translator fuzz (MSL output unchanged, GLSL compiles and validates).
 - `tools/test_vk_pipelines.sh`: fuzzed shaders through the backend's compile/reflection into real pipelines.
-- `LARECOMP_VK_VALIDATION=1` with `VK_ADD_LAYER_PATH` pointing at `C:\msys64\ucrt64\bin`: Khronos validation layer.
+- `NXRT_VK_VALIDATION=1` with `VK_ADD_LAYER_PATH` pointing at `C:\msys64\ucrt64\bin`: Khronos validation layer.
 - Run test windows directly, not under MSYS `timeout` (it stalls the window).

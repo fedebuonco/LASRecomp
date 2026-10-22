@@ -4,12 +4,12 @@
 // at a 5632-byte buffer of ours (45056 flags; digsanity keeps two per overworld tile from 4096 up: dug, item collected -
 // runtime/hle/digs.c).
 //   bits 0-2047     mirrored into the save every frame both ways (whatever writes the save copy directly - loads,
-//                   the save editor, LARECOMP_SET_FLAGS - is taken over; the game saves the save copy as before)
+//                   the save editor, NXRT_SET_FLAGS - is taken over; the game saves the save copy as before)
 //   bits 2048+      kept in a sidecar file next to each save slot (savedataN.bin -> savedataN.bin.flagsx; older
 //                   256-byte sidecars load as they are)
 // The file-select screen reads every slot, so a slot's extra bits are matched to the save the game puts in play by
 // the body CRC (save +0x5EC4) of the data read from its file.
-// Only on when the seed needs it (rando/<seed>/flags_ext exists) or LARECOMP_FLAGS_EXT=1.
+// Only on when the seed needs it (rando/<seed>/flags_ext exists) or NXRT_FLAGS_EXT=1.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -55,9 +55,9 @@ RT_ON_RESET(flags_ext_reset) {
 
 static bool enabled(void) {
     if (g_on < 0) {
-        const char *e = ENV("LARECOMP_FLAGS_EXT");
+        const char *e = ENV("NXRT_FLAGS_EXT");
         g_on = e ? atoi(e) != 0 : 0;
-        if (!e && rando_seed_dir()) {  // (LARECOMP_FLAGS_EXT=0 forces it off)
+        if (!e && rando_seed_dir()) {  // (NXRT_FLAGS_EXT=0 forces it off)
             char p[512];
             struct stat sb;
             snprintf(p, sizeof p, "%s/flags_ext", rando_seed_dir());

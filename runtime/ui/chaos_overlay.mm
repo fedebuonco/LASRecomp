@@ -7,7 +7,7 @@
 // DGN_MAP_SITE) holds its layout panes at page+0x8 -> +0x10: N_Map_00 (+0x70: zoom / scroll), N_MapPosition_00
 // (+0x7a8: the dungeon's offset - Face Shrine -16, Tail Cave +48). The room grid P_Grid_00 is 652 x 518 layout
 // units, 8 x 8 cells of 81.5 x 64.75 (1280 x 720 layout, origin at the centre, y up); found 2026-10-09 with
-// LARECOMP_PANE_SCAN. Zoom and scroll live in N_MapOrigin_00 (page+0x8 -> +0x10 -> +0xf0 -> +0x6a8: translate
+// NXRT_PANE_SCAN. Zoom and scroll live in N_MapOrigin_00 (page+0x8 -> +0x10 -> +0xf0 -> +0x6a8: translate
 // +0x30/+0x34, scale +0x48; 1 at rest, 2 zoomed), found by scanning before/after a right-stick zoom.
 #include <math.h>
 #include <stdio.h>
@@ -18,7 +18,7 @@
 extern "C" {
 #include "../hle.h"
 #include "../rando.h"
-#include "../settings.h"
+#include "../las_settings.h"
 uint64_t renderer_present_count(void);
 int doorjump_chaos_pairs(const char *level, int *ids, int max);
 void doorjump_chaos_pair(int id, int *col, int *row, char *side, int *slot);
@@ -38,7 +38,7 @@ extern "C" void rt_dgnmap_tick(Cpu *c) {
     g_dm_obj = c->x[0];
 }
 
-extern "C" uint64_t chaos_dgnmap_obj(void) { return g_dm_obj; }  // (LARECOMP_PANE_SCAN)
+extern "C" uint64_t chaos_dgnmap_obj(void) { return g_dm_obj; }  // (NXRT_PANE_SCAN)
 
 static const char *current_level(void) {
     uint64_t ps = LD64(PLAYER_STATUS_PTR);
@@ -59,7 +59,7 @@ static uint64_t pane(uint64_t p, const char *name) {  // the pane at p if it has
 }
 
 extern "C" bool chaos_overlay_wanted(void) {
-    if (g_settings.chaos_letters == CHAOS_LETTERS_OFF) return false;
+    if (g_las.chaos_letters == CHAOS_LETTERS_OFF) return false;
     if (!rando_seed_dir() || renderer_present_count() - g_dm_frame > 2 || !g_dm_obj) return false;
     int ids[4];
     return doorjump_chaos_pairs(current_level(), ids, 4) > 0;
@@ -137,7 +137,7 @@ extern "C" void chaos_overlay_draw(ImVec2 display, ImFont *font) {
         return ImVec2(ox + (640 + x) * u, oy + (360 - y) * u);
     };
     const char *lv = current_level();
-    bool all = g_settings.chaos_letters == CHAOS_LETTERS_MAP && have_map(lv);
+    bool all = g_las.chaos_letters == CHAOS_LETTERS_MAP && have_map(lv);
     int ids[296];
     int n = doorjump_chaos_pairs(lv, ids, 296);
     // Doorways and their labels. A two-way pair (Chaos) shares one letter, A-A. Madness rows are one-way: each doorway

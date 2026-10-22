@@ -1,0 +1,3 @@
+[submodule "nxrt"]
+	path = nxrt
+	url = https://github.com/fedebuonco/nxrt.git

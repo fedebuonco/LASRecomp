@@ -10,15 +10,15 @@
 #      save on it until Link is in a level; then close and delete the seed
 # Result: build/smoke/report.txt (PASS / FAIL per check), build/smoke/sheet.png (every screenshot, labelled) and the
 # screenshots in build/smoke/shots/. Exit status 0 = ready for release.
-# Uses this checkout's extracted/ (as the folder a player picks) and a test save that is never in git: $LARECOMP_SMOKE_SAVE (a save folder with
+# Uses this checkout's extracted/ (as the folder a player picks) and a test save that is never in git: $NXRT_SMOKE_SAVE (a save folder with
 # save_0/, default ~/.local/share/lasrecomp-smoketest/save). Make one by starting a new game once (any build, data
 # folder's save/) and copying that save/ there. Nothing in ~/.local/share/lasrecomp is used or changed.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 REPO=$PWD
-VERSION=$(sed -n 's/^#define LARECOMP_VERSION "\(.*\)"/\1/p' runtime/ui/launcher.mm)
+VERSION=$(sed -n 's/^#define LAS_VERSION "\(.*\)"/\1/p' runtime/las_game.c)
 APP=$(realpath "${1:-build/dist/LAS Recomp-$VERSION-linux-x86_64.AppImage}")
-SAVE=${LARECOMP_SMOKE_SAVE:-$HOME/.local/share/lasrecomp-smoketest/save}
+SAVE=${NXRT_SMOKE_SAVE:-$HOME/.local/share/lasrecomp-smoketest/save}
 O=$REPO/build/smoke
 [ -x "$APP" ] || { echo "smoketest: no AppImage at $APP (make appimage)"; exit 2; }
 [ -d "$SAVE/save_0" ] || { echo "smoketest: no test save in $SAVE (see the top of this script)"; exit 2; }
@@ -27,8 +27,8 @@ O=$REPO/build/smoke
 rm -rf "$O" && mkdir -p "$O/root/build" "$O/shots"
 cp -R "$SAVE" "$O/save"
 # test runs: no update check, no sound, a data folder of their own (runtime/paths.h), the AppImage run without FUSE
-export LARECOMP_DATA_ROOT=$O/root LARECOMP_SAVE_DIR=$O/save LARECOMP_SETTINGS=$O/root/larecomp.ini \
-       LARECOMP_NO_UPDATE_CHECK=1 LARECOMP_NO_AUDIO=1 APPIMAGE_EXTRACT_AND_RUN=1
+export NXRT_DATA_ROOT=$O/root NXRT_SAVE_DIR=$O/save NXRT_SETTINGS=$O/root/larecomp.ini \
+       NXRT_NO_UPDATE_CHECK=1 NXRT_NO_AUDIO=1 APPIMAGE_EXTRACT_AND_RUN=1
 FAILS=0
 report() {  # PASS|FAIL, text
     printf '%-4s  %s\n' "$1" "$2" | tee -a "$O/report.txt"
@@ -59,9 +59,9 @@ wait_app() {  # seconds: status 0 = the game ended by itself in time, else it is
     return 1
 }
 
-# ---- 0. setup (headless: LARECOMP_LAUNCHER_EXTRACT runs the start screen's Set up, logs the result and exits)
+# ---- 0. setup (headless: NXRT_LAUNCHER_EXTRACT runs the start screen's Set up, logs the result and exits)
 t0=$(date +%s)
-start_app LARECOMP_LAUNCHER_EXTRACT="$REPO/extracted"
+start_app NXRT_LAUNCHER_EXTRACT="$REPO/extracted"
 wait_app 1800
 mv "$O/root/lasrecomp.log" "$O/setup.log" 2>/dev/null
 lib=$(ls "$O/root/extracted"/lasgame.* 2>/dev/null | head -1)
@@ -73,7 +73,7 @@ fi
 
 # ---- 1. start screen
 # (no terminal: the app logs to lasrecomp.log in its data folder, runtime/platform/linux.c)
-start_app LARECOMP_LAUNCHER_SHOT=150 LARECOMP_SHOT_PATH="$O/shots/00_start_screen.png"
+start_app NXRT_LAUNCHER_SHOT=150 NXRT_SHOT_PATH="$O/shots/00_start_screen.png"
 wait_app 90
 mv "$O/root/lasrecomp.log" "$O/start_screen.log" 2>/dev/null
 if [ -f "$O/shots/00_start_screen.png" ] && [ "$(dark "$O/shots/00_start_screen.png")" = 0 ] &&
@@ -112,8 +112,8 @@ for i in "${!WARPS[@]}"; do
 done
 IFS=: read -r _ lvl0 loc0 <<< "${WARPS[0]}"
 LAST=$((START + (${#WARPS[@]} - 1) * STEP + WAIT + 60))
-start_app LARECOMP_NO_LAUNCHER=1 LARECOMP_INPUT="${IN%,}" LARECOMP_WARP_ON_LOAD="$lvl0:$loc0" \
-    LARECOMP_WARP_AT="${AT%,}" LARECOMP_SHOT_AT="${SHOTS%,}" LARECOMP_WINDOW_SHOT=$LAST LARECOMP_EXIT_AFTER_SHOT=1
+start_app NXRT_NO_LAUNCHER=1 NXRT_INPUT="${IN%,}" NXRT_WARP_ON_LOAD="$lvl0:$loc0" \
+    NXRT_WARP_AT="${AT%,}" NXRT_SHOT_AT="${SHOTS%,}" NXRT_WINDOW_SHOT=$LAST NXRT_EXIT_AFTER_SHOT=1
 wait_app 600
 rc=$?
 mv "$O/root/lasrecomp.log" "$O/game.log" 2>/dev/null
@@ -142,13 +142,13 @@ echo "frame rate (2 s samples): $fps" | tee -a "$O/report.txt"
 # ---- 4. randomizer: in game, the menu's Randomizer tab generates a seed (the shipped rando-gen helper) and Play Now
 # switches to it live (in-place reboot); the save is loaded again on the seed. The session ends once Link is in a
 # level on the seed (log), then the seed is deleted. Input keeps loading the save from whatever title screen shows.
-# (LARECOMP_RANDO_GEN_SHOTS is what presses Play Now; its menu screenshots are Metal-only, so none here.)
+# (NXRT_RANDO_GEN_SHOTS is what presses Play Now; its menu screenshots are Metal-only, so none here.)
 SEED=SmokeSeed
 rm -rf "$O/root/build/frames" "$O/root/build"/frame_*.png
 rm -rf "$O/save" && cp -R "$SAVE" "$O/save"  # (the warps above saved in the dungeons: start from the house again)
 IN=$(for f in $(seq 600 100 40000); do printf '%d:L:12,%d:R:12,%d:A:6,' $f $f $((f + 50)); done)
-start_app LARECOMP_NO_LAUNCHER=1 LARECOMP_INPUT="${IN%,}" LARECOMP_MENU_AT=7000 LARECOMP_MENU_TAB=3 \
-    LARECOMP_RANDO_GEN_TEST=$SEED LARECOMP_RANDO_GEN_SHOTS="$O/shots/17_seed" LARECOMP_SCREENSHOT_EVERY=120
+start_app NXRT_NO_LAUNCHER=1 NXRT_INPUT="${IN%,}" NXRT_MENU_AT=7000 NXRT_MENU_TAB=3 \
+    NXRT_RANDO_GEN_TEST=$SEED NXRT_RANDO_GEN_SHOTS="$O/shots/17_seed" NXRT_SCREENSHOT_EVERY=120
 L=$O/root/lasrecomp.log
 in_seed() {  # after the switch: the seed active, then the renderer reports a level (not the title screen, "-")
     sed -n "/\[rando\] seed \"$SEED\" active/,\$p" "$L" 2>/dev/null | grep -cE ' level [A-Za-z0-9_]+ \(' >/dev/null

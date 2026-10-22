@@ -294,7 +294,7 @@ extern "C" void save_editor_draw(float scale) {
     sync_header();
 }
 
-// ---- debug helpers (LARECOMP_SAVE_DUMP_AT=<frame>: log the live save at that frame)
+// ---- debug helpers (NXRT_SAVE_DUMP_AT=<frame>: log the live save at that frame)
 extern "C" void save_editor_file_read(const char *path, uint64_t addr, int64_t off, int64_t size) {
     (void)path; (void)addr; (void)off; (void)size;
 }
@@ -304,11 +304,11 @@ extern "C" void difficulty_frame(void);  // difficulty.mm
 extern "C" void save_editor_frame(uint64_t frame) {
     cheats_frame();
     difficulty_frame();
-    static int watch = -1;  // LARECOMP_WATCH_SAVE=<lo>,<hi> (save offsets): log code touching that range
+    static int watch = -1;  // NXRT_WATCH_SAVE=<lo>,<hi> (save offsets): log code touching that range
     if (watch < 0) {
         watch = 0;
         unsigned lo, hi;
-        if (ENV("LARECOMP_WATCH_SAVE") && sscanf(ENV("LARECOMP_WATCH_SAVE"), "%x,%x", &lo, &hi) == 2) {
+        if (ENV("NXRT_WATCH_SAVE") && sscanf(ENV("NXRT_WATCH_SAVE"), "%x,%x", &lo, &hi) == 2) {
             extern uint64_t g_watch_lo, g_watch_hi;
             g_watch_lo = LIVE_SAVE + lo;
             g_watch_hi = LIVE_SAVE + hi;
@@ -316,8 +316,8 @@ extern "C" void save_editor_frame(uint64_t frame) {
             watch_arm();
         }
     }
-    static long test_at = -2;  // LARECOMP_SAVE_MAX_AT=<frame>: press "Max out everything" (test hook)
-    if (test_at == -2) test_at = getenv("LARECOMP_SAVE_MAX_AT") ? atol(getenv("LARECOMP_SAVE_MAX_AT")) : -1;
+    static long test_at = -2;  // NXRT_SAVE_MAX_AT=<frame>: press "Max out everything" (test hook)
+    if (test_at == -2) test_at = getenv("NXRT_SAVE_MAX_AT") ? atol(getenv("NXRT_SAVE_MAX_AT")) : -1;
     if (test_at >= 0 && (long)frame == test_at && loaded()) {
         F<uint16_t>(CONTAINERS) = 0x1FF; F<uint64_t>(PIECES) = 0xFFFFFFFFull; F<uint32_t>(RUPEES) = 999;
         F<uint64_t>(SHELLS) = low_bits(50); F<uint8_t>(LEAVES) = 0x1F; F<uint32_t>(ITEMS) |= 0xFFFF; F<uint8_t>(UPGRADES) |= 0x3F;
@@ -326,22 +326,22 @@ extern "C" void save_editor_frame(uint64_t frame) {
         sync_header();
         LOG("[save] test: maxed out\n");
     }
-    static long poke_done;  // LARECOMP_POKE_SAVE=off=val,...: write live-save bytes (hex offsets) once after load
-    if (!poke_done && loaded() && ENV("LARECOMP_POKE_SAVE") && frame > 2600) {
+    static long poke_done;  // NXRT_POKE_SAVE=off=val,...: write live-save bytes (hex offsets) once after load
+    if (!poke_done && loaded() && ENV("NXRT_POKE_SAVE") && frame > 2600) {
         poke_done = 1;
-        for (const char *p = ENV("LARECOMP_POKE_SAVE"); *p;) {
+        for (const char *p = ENV("NXRT_POKE_SAVE"); *p;) {
             unsigned off = 0, val = 0;
             if (sscanf(p, "%x=%x", &off, &val) == 2 && off < 0x5EE0) *(uint8_t *)(uintptr_t)(LIVE_SAVE + off) = (uint8_t)val;
             while (*p && *p != ',') p++;
             if (*p) p++;
         }
-        LOG("[save] poked %s\n", ENV("LARECOMP_POKE_SAVE"));
+        LOG("[save] poked %s\n", ENV("NXRT_POKE_SAVE"));
     }
-    if (loaded()) {  // LARECOMP_LOG_FLAGS: log event-flag bit changes; LARECOMP_SET_FLAGS=i,j,..: force those bits on
+    if (loaded()) {  // NXRT_LOG_FLAGS: log event-flag bit changes; NXRT_SET_FLAGS=i,j,..: force those bits on
         static uint8_t prev[256];
         static bool have_prev;
         uint8_t *fl = (uint8_t *)(uintptr_t)(LIVE_SAVE + 0x5DC0);
-        if (const char *sf = ENV("LARECOMP_SET_FLAGS")) {
+        if (const char *sf = ENV("NXRT_SET_FLAGS")) {
             for (const char *p = sf; *p;) {
                 int i = atoi(p);
                 if (i >= 0 && i < 2048 && !(fl[i >> 3] & (1 << (i & 7)))) {
@@ -352,7 +352,7 @@ extern "C" void save_editor_frame(uint64_t frame) {
                 if (*p) p++;
             }
         }
-        if (ENV("LARECOMP_LOG_FLAGS")) {
+        if (ENV("NXRT_LOG_FLAGS")) {
             if (have_prev)
                 for (int i = 0; i < 2048; i++)
                     if ((fl[i >> 3] ^ prev[i >> 3]) & (1 << (i & 7)))
@@ -361,7 +361,7 @@ extern "C" void save_editor_frame(uint64_t frame) {
             have_prev = true;
         }
     }
-    if (ENV("LARECOMP_FIND_FLAGS") && frame == 3000) {  // locate the event-flag bitfield (ptr, byte capacity)
+    if (ENV("NXRT_FIND_FLAGS") && frame == 3000) {  // locate the event-flag bitfield (ptr, byte capacity)
         for (uint64_t a = 0x7001C00000ull; a < 0x7001D00000ull; a += 8) {
             uint64_t v = *(uint64_t *)(uintptr_t)a;
             if (v >= LIVE_SAVE && v < LIVE_SAVE + 0x5EE0) {
@@ -372,7 +372,7 @@ extern "C" void save_editor_frame(uint64_t frame) {
         }
     }
     static long at = -2;
-    if (at == -2) at = getenv("LARECOMP_SAVE_DUMP_AT") ? atol(getenv("LARECOMP_SAVE_DUMP_AT")) : -1;
+    if (at == -2) at = getenv("NXRT_SAVE_DUMP_AT") ? atol(getenv("NXRT_SAVE_DUMP_AT")) : -1;
     if (at < 0 || (long)frame != at) return;
     const uint8_t *L = S();
     LOG("[save] live: version %u name %c%c%c%c rupees %u health %d items %08x keys %08x\n", *(const uint32_t *)L, L[0x5388],

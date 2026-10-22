@@ -103,11 +103,11 @@ extern "C" bool warp_tab_draw(float scale) {
     ImGui::Spacing();
 
     bool started = false;
-    // test hook: LARECOMP_WARP_MENU_PICK=<text> picks the first spot matching <text> through this tab
-    static int test_state = getenv("LARECOMP_WARP_MENU_PICK") ? 1 : 0;
+    // test hook: NXRT_WARP_MENU_PICK=<text> picks the first spot matching <text> through this tab
+    static int test_state = getenv("NXRT_WARP_MENU_PICK") ? 1 : 0;
     if (test_state == 1 && avail) {
         for (int i = 0; i < kNumSpots; i++)
-            if (matches(kWarpSpots[i], getenv("LARECOMP_WARP_MENU_PICK"))) {
+            if (matches(kWarpSpots[i], getenv("NXRT_WARP_MENU_PICK"))) {
                 warp_request(kWarpSpots[i].level, kWarpSpots[i].locator);
                 snprintf(g_last, sizeof g_last, "%s  -  %s", kWarpSpots[i].area, kWarpSpots[i].label);
                 LOG("[warp] menu test pick: %s\n", g_last);

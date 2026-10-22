@@ -10,7 +10,7 @@
 //
 // Link's position: the "PlayerCollision" component (vtable main+0x1c501f0, name inline at +0x18), vec3 at +0x80
 // (a second copy at +0xb0); writing it moves Link, every other copy follows (found 2026-10-08 with
-// LARECOMP_ADDF_MATCH bisection, notes/PLAN.md). It's re-found by a heap scan after each level load.
+// NXRT_ADDF_MATCH bisection, notes/PLAN.md). It's re-found by a heap scan after each level load.
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -114,7 +114,7 @@ static int is_player_collision(uint64_t p) {
 
 // The component lives on the heap (16-byte aligned); scan for it after each level change (the previous level's
 // player can stay in freed memory looking valid) and when the cached pointer goes stale. Several candidates:
-// log them all (LARECOMP_DOORJUMP_LOG) and take the last one found (newest allocation is the live one - checked).
+// log them all (NXRT_DOORJUMP_LOG) and take the last one found (newest allocation is the live one - checked).
 static uint64_t find_player(uint64_t frame) {
     uint64_t ps = LD64(PLAYER_STATUS_PTR);
     const char *lv = ps ? (const char *)(uintptr_t)ps : "";
@@ -136,7 +136,7 @@ static uint64_t find_player(uint64_t frame) {
         for (uint64_t k = 0; k + 0x100 <= rs[r]; k += 16)
             if (LD64(ra[r] + k) == PLAYER_COLLISION_VT && is_player_collision(ra[r] + k)) {
                 const float *p = (const float *)(uintptr_t)(ra[r] + k + 0x80);
-                if (ENV("LARECOMP_DOORJUMP_LOG"))
+                if (ENV("NXRT_DOORJUMP_LOG"))
                     LOG("[doorjump] candidate %llx (%.2f, %.2f, %.2f) parent %llx\n", (unsigned long long)(ra[r] + k),
                         p[0], p[1], p[2], (unsigned long long)LD64(ra[r] + k + 0x10));
                 g_player = ra[r] + k;
@@ -149,9 +149,9 @@ static uint64_t find_player(uint64_t frame) {
 
 uint64_t doorjump_player(uint64_t frame) { return find_player(frame); }  // (test hooks elsewhere: hookshot.c; digsanity: digs.c)
 
-// LARECOMP_DOORJUMP_TEST=<frame>:<cell>:<side> (test): from <frame> on, once the level with jumps has been loaded
-// for 60 frames (warp into the cell first, LARECOMP_WARP_AT), put Link 1.2 inside that doorway; the test holds the
-// stick outward (tools/doorjump_test.sh, LARECOMP_INPUT); 300 frames later log the cell he is in
+// NXRT_DOORJUMP_TEST=<frame>:<cell>:<side> (test): from <frame> on, once the level with jumps has been loaded
+// for 60 frames (warp into the cell first, NXRT_WARP_AT), put Link 1.2 inside that doorway; the test holds the
+// stick outward (tools/doorjump_test.sh, NXRT_INPUT); 300 frames later log the cell he is in
 uint64_t g_stick_freeze_until;
 static int g_jumps_fired;  // (test result: a jump that fired and then he ended elsewhere = pushed back by an enemy)  // runtime/hle/input.c releases the stick until this frame
 int32_t g_test_lx, g_test_ly;  // stick held by the test (runtime/hle/input.c)
@@ -167,7 +167,7 @@ static void test_tick(uint64_t frame, uint64_t pc, const char *lv) {
     static int was_in;
     if (at == -2) {
         at = -1;
-        const char *e = ENV("LARECOMP_DOORJUMP_TEST");
+        const char *e = ENV("NXRT_DOORJUMP_TEST");
         char sd[4];
         if (e && sscanf(e, "%ld:%7[^:]:%3s", &at, cell, sd) == 3) side = sd[0]; else at = -1;
     }
@@ -237,10 +237,10 @@ static void test_tick(uint64_t frame, uint64_t pc, const char *lv) {
 uint64_t g_test_buttons, g_test_buttons_until;
 int32_t g_stick_lx, g_stick_ly;  // left stick as the player holds it (runtime/hle/input.c)
 
-// LARECOMP_PLACE=<frame>:<x>:<z>[:<script>] (test): put Link at x, z (any level) once the level has been loaded 60
+// NXRT_PLACE=<frame>:<x>:<z>[:<script>] (test): put Link at x, z (any level) once the level has been loaded 60
 // frames, then run <script> relative to that moment: steps "<delay>:<L|R|U|D|A|B|X|Y>:<frames>" separated by '/', e.g.
 // "10:L:8/40:A:6/90:A:6/130:L:30" = face west, lift, throw, walk west (pot tests)
-static long trace_until = -1;  // LARECOMP_DOORJUMP_TRACE: Link's position for 90 frames after each jump / placement
+static long trace_until = -1;  // NXRT_DOORJUMP_TRACE: Link's position for 90 frames after each jump / placement
 
 static void place_tick(uint64_t frame) {
     static long at = -2, done, placed_at = -1;
@@ -250,7 +250,7 @@ static void place_tick(uint64_t frame) {
     static char level[64];
     if (at == -2) {
         at = -1;
-        const char *e = getenv("LARECOMP_PLACE");
+        const char *e = getenv("NXRT_PLACE");
         if (e && sscanf(e, "%ld:%f:%f:%255s", &at, &px, &pz, script) < 3) at = -1;
     }
     if (placed_at >= 0 && script[0]) {  // action script
@@ -287,15 +287,15 @@ static void place_tick(uint64_t frame) {
     LOG("[place] f%llu Link -> (%.2f, %.2f) in %s\n", (unsigned long long)frame, px, pz, lv);
     done = 1;
     placed_at = (long)frame;
-    if (ENV("LARECOMP_DOORJUMP_TRACE")) trace_until = (long)frame + 240;
+    if (ENV("NXRT_DOORJUMP_TRACE")) trace_until = (long)frame + 240;
 }
 
 void doorjump_tick(uint64_t frame) {
     place_tick(frame);
     if (g_njumps < 0) load();
-    {   // LARECOMP_LOG_LINK=<every N frames>: Link's position (movement tests)
+    {   // NXRT_LOG_LINK=<every N frames>: Link's position (movement tests)
         static int every = -1;
-        if (every < 0) { const char *e = getenv("LARECOMP_LOG_LINK"); every = e ? atoi(e) : 0; }
+        if (every < 0) { const char *e = getenv("NXRT_LOG_LINK"); every = e ? atoi(e) : 0; }
         uint64_t pc0 = every > 0 && frame % (uint64_t)every == 0 ? find_player(frame) : 0;
         if (pc0) {
             float *p0 = (float *)(uintptr_t)(pc0 + 0x80);
@@ -310,7 +310,7 @@ void doorjump_tick(uint64_t frame) {
         }
     }
     if (!g_njumps) return;
-    if (ENV("LARECOMP_DOORJUMP_TEST")) {
+    if (ENV("NXRT_DOORJUMP_TEST")) {
         uint64_t ps0 = LD64(PLAYER_STATUS_PTR);
         if (ps0) test_tick(frame, find_player(frame), (const char *)(uintptr_t)ps0);
     }
@@ -332,7 +332,7 @@ void doorjump_tick(uint64_t frame) {
     }
     if ((long)frame <= trace_until) {
         LOG("[doorjump-trace] f%llu (%.2f, %.2f, %.2f)\n", (unsigned long long)frame, x, pos[1], z);
-        if (ENV("LARECOMP_DOORJUMP_DUMP")) {  // every float of the PlayerCollision object that looks like x or z
+        if (ENV("NXRT_DOORJUMP_DUMP")) {  // every float of the PlayerCollision object that looks like x or z
             const float *o = (const float *)(uintptr_t)pc;
             for (int k = 0; k < 0x400 / 4; k++)
                 if ((fabsf(o[k] - x) < 0.6f || fabsf(o[k] - z) < 0.6f) && fabsf(o[k]) > 1.0f)
@@ -354,7 +354,7 @@ void doorjump_tick(uint64_t frame) {
         case 'N': depth = lz; lateral = lx; out = -dz; break;
         default: depth = 12.0f - lz; lateral = lx; out = dz; break;
         }
-        if (ENV("LARECOMP_DOORJUMP_LOG") && depth < 1.5f)
+        if (ENV("NXRT_DOORJUMP_LOG") && depth < 1.5f)
             LOG("[doorjump] f%llu %c depth %.3f lateral %.3f out %.4f still %d y %.2f\n", (unsigned long long)frame, j->side, depth, lateral, out, j->still, pos[1]);
         // (pressed against the wall he bounces between two positions each frame, ~0.3 from the edge)
         if (depth > 0.7f || fabsf(lateral - j->own * 0.75f) > 1.2f) { j->still = 0; continue; }  // per doorway: a cell's other doorways mustn't reset it
@@ -370,9 +370,9 @@ void doorjump_tick(uint64_t frame) {
         g_stick_freeze_until = frame + 3;
         ++j->still;
         // jump only after ~0.4 s at rest: while Link is in the game's push-against-a-wall state (it outlasts the
-        // push) position writes are undone (Angler's 03G -> 02G: 12 frames failed, 20 passed). LARECOMP_DJ_REST: frames
+        // push) position writes are undone (Angler's 03G -> 02G: 12 frames failed, 20 passed). NXRT_DJ_REST: frames
         static int rest = -1;
-        if (rest < 0) rest = getenv("LARECOMP_DJ_REST") ? atoi(getenv("LARECOMP_DJ_REST")) : 24;
+        if (rest < 0) rest = getenv("NXRT_DJ_REST") ? atoi(getenv("NXRT_DJ_REST")) : 24;
         // ...unless he's dropping: where the neighbour has no wall at this doorway there's nothing under him past the
         // edge - jump at once, before he falls (Tail Cave 05F south in a generated layout: fell, then respawned)
         bool falling = pos[1] < -0.3f;
@@ -397,7 +397,7 @@ void doorjump_tick(uint64_t frame) {
         if (abs(j->tcol - col) + abs(j->trow - row) != 1) { hold_x = nx, hold_y = pos[1], hold_z = nz; g_hold_until = frame + 30; }  // (y set above)
         g_jumps_fired++;
         if (j->pair >= 0) { extern void flags_ext_set(int idx); flags_ext_set(CHAOS_FLAG_BASE + j->pair); }
-        if (ENV("LARECOMP_DOORJUMP_TRACE")) trace_until = (long)frame + 90;
+        if (ENV("NXRT_DOORJUMP_TRACE")) trace_until = (long)frame + 90;
         if (g_test_stick_until > frame + 40) g_test_stick_until = frame + 40;  // (test: walk on a little, then stop)
         break;
     }

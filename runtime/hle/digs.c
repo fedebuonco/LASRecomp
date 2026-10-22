@@ -66,7 +66,7 @@ static uint64_t g_alive[NTILES];  // control block of the tile's hole (weak ref 
 static uint64_t g_item[NTILES];   // ... of the tile's item actor
 static uint32_t g_zone = 1;       // zone id the shovel passes (1 on the Field; refreshed by every real dig)
 static int g_queue[64], g_nq;     // dug checks whose item is to be spawned
-static FILE *g_test_out;          // (dig test: LARECOMP_DIG_TEST)
+static FILE *g_test_out;          // (dig test: NXRT_DIG_TEST)
 static uint8_t g_spawns[NTILES];  // holes reopened per tile that didn't stay (3: give up)
 static uint64_t g_spawn_at[NTILES];  // ... frame of the last reopen (a hole that lasted was unloaded, not failed)
 static uint64_t g_quiet[NTILES];  // reopened hole: until this frame nothing else may appear on the tile (its dig drop)
@@ -102,7 +102,7 @@ static bool enabled(void) {
     if (g_on >= 0) return g_on;
     g_on = 0;
     const char *dir = rando_seed_dir();
-    if (!dir && ENV("LARECOMP_DIG_TEST")) { g_tiles = calloc(NTILES, sizeof(Tile)); return g_on = 1; }  // (no items)
+    if (!dir && ENV("NXRT_DIG_TEST")) { g_tiles = calloc(NTILES, sizeof(Tile)); return g_on = 1; }  // (no items)
     if (!dir) return false;
     char path[512];
     snprintf(path, sizeof path, "%s/digs.tsv", dir);
@@ -352,7 +352,7 @@ static bool spawn_item(Cpu *c, int g) {
 
 static bool hole_alive(int g) { return alive(g_alive[g]); }
 
-// LARECOMP_DIG_TEST=<frame>:<list>[:<first>:<count>] (test): from <frame> on (shovel on Y, sword on B), digs every
+// NXRT_DIG_TEST=<frame>:<list>[:<first>:<count>] (test): from <frame> on (shovel on Y, sword on B), digs every
 // tile of <list> (tools/rando/digs.py --test-list: tile id, C = cut grass / a bush first, nearest Field locator, then
 // the walkable neighbours Link can dig it from as x,z,direction). The test warps to the locator when it changes, puts
 // Link on a stand tile, turns him toward the tile, cuts (B) when needed and digs (Y); no hole -> the next stand.
@@ -368,7 +368,7 @@ static void dig_test(uint64_t frame) {
     static char warped[40];
     if (state == -1) {
         state = -2;
-        const char *e = ENV("LARECOMP_DIG_TEST");
+        const char *e = ENV("NXRT_DIG_TEST");
         char path[256];
         first = 0, count = 1 << 30;
         if (!e || sscanf(e, "%ld:%255[^:]:%d:%d", &at, path, &first, &count) < 2) return;
@@ -409,7 +409,7 @@ static void dig_test(uint64_t frame) {
         LOG("[digtest] done\n");
         if (g_test_out) fclose(g_test_out);
         g_test_out = NULL;
-        if (!ENV("LARECOMP_DIG_TEST_STAY")) _exit(0);  // (STAY: the game goes on - a test that walks the holes after)
+        if (!ENV("NXRT_DIG_TEST_STAY")) _exit(0);  // (STAY: the game goes on - a test that walks the holes after)
         state = -2;
         return;
     }
