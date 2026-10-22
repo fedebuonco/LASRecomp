@@ -2,8 +2,8 @@
 # macOS: Homebrew clang/SDL3/FFmpeg, Metal renderer.
 # Windows: MSYS2 UCRT64 shell (see docs/BUILD-windows.md), clang + Vulkan renderer.
 # Linux: clang + Vulkan renderer, x86-64 or aarch64 (see docs/linux.md).
-# the submodule is this repository: the library itself is nxrt/ inside it
-NXRT     := nxrt/nxrt
+# the library root is the submodule root
+NXRT     := nxrt
 export NXRT  # (the packaging scripts below take it too)
 GAME_ID  := las
 GAME_EXE := lasrecomp
