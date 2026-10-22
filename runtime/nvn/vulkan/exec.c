@@ -1114,7 +1114,14 @@ static void vk_end_pass_at(int line) {
         static int multi = -1;
         if (multi < 0) multi = getenv("LARECOMP_DEBUG_FRAMES") != NULL;
         if (multi && renderer_present_count() != debug_pass_frame) { debug_pass_frame = renderer_present_count(); debug_pass_no = 0; }
-        if (multi) snprintf(path, sizeof path, "build/pass_%llu_%03d.png", (unsigned long long)debug_pass_frame, debug_pass_no++);
+        // LARECOMP_VK_PASS_MEANS=1 (issue #8 diagnostics): the pass's average colour into the log instead of a PNG
+        // ([passmean] lines, with F9 or LARECOMP_DEBUG_FRAME: one GPU's frame against another's, pass by pass)
+        static int means = -1;
+        if (means < 0) { const char *e = getenv("LARECOMP_VK_PASS_MEANS"); means = e && atoi(e) != 0; }
+        if (means) {
+            NvnTexture *t = st.rt.color[0];
+            snprintf(path, sizeof path, "mean:%03d nvn fmt %#x %ux%u", debug_pass_no++, t->format, t->width, t->height);
+        } else if (multi) snprintf(path, sizeof path, "build/pass_%llu_%03d.png", (unsigned long long)debug_pass_frame, debug_pass_no++);
         else snprintf(path, sizeof path, "build/pass_%03d.png", debug_pass_no++);
         renderer_save_texture_tex(st.rt.color[0]->backend, path);
     }
@@ -3942,6 +3949,54 @@ bool renderer_prepare(const ShaderRec *r, const ShaderBlob *vsb, const ShaderBlo
     return true;
 }
 
+// Issue #8 diagnostics, after a compute dispatch (render thread):
+// LARECOMP_VK_CS_SYNC=1: the submission runs to the end right after each dispatch (a synchronisation suspect).
+// LARECOMP_VK_CS_LOG=1: about once a second per compute shader, after its dispatch has finished, each storage buffer it
+// had bound is summarised in the log (size, words not zero, NaN / infinite words, the finite range, the first words), to
+// compare one GPU's numbers with another's at the same spot.
+static void cs_diag_after(uint32_t gx, uint32_t gy, uint32_t gz) {
+    static int sync = -1, logon = -1;
+    if (sync < 0) { const char *e = getenv("LARECOMP_VK_CS_SYNC"); sync = e && atoi(e) != 0; }
+    if (logon < 0) { const char *e = getenv("LARECOMP_VK_CS_LOG"); logon = e && atoi(e) != 0; }
+    if (!sync && !logon) return;
+    bool due = false;
+    uint64_t code = st.program->stages[5].code_addr;
+    if (logon) {
+        static struct { uint64_t code, at; } last[32];
+        uint64_t now = SDL_GetTicksNS();
+        int k = 0;
+        while (k < 31 && last[k].code && last[k].code != code) k++;
+        if (last[k].code != code || now - last[k].at >= 1000000000ull) { last[k].code = code; last[k].at = now; due = true; }
+    }
+    if (!sync && !due) return;
+    wait_why = "compute diagnostics";
+    renderer_flush();
+    if (!due) return;
+    LOG("[csdiag] cs %llx %ux%ux%u frame %llu\n", (unsigned long long)code, gx, gy, gz, (unsigned long long)renderer_present_count());
+    for (int i = 0; i < 16; i++) {
+        uint64_t a = st.sbuf[5][i].addr, sz = st.sbuf[5][i].size;
+        if (!a || !sz || a < HEAP_BASE || a - HEAP_BASE + sz > HEAP_MAX) continue;
+        const uint32_t *w = (const uint32_t *)(uintptr_t)a;
+        uint64_t n = sz / 4, scan = n < 65536 ? n : 65536, nz = 0, bad = 0;
+        float lo = 0, hi = 0;
+        bool any = false;
+        for (uint64_t j = 0; j < scan; j++) {
+            if (!w[j]) continue;
+            nz++;
+            if ((w[j] & 0x7F800000u) == 0x7F800000u) { bad++; continue; }
+            float f;
+            memcpy(&f, &w[j], 4);
+            if (!any || f < lo) lo = f;
+            if (!any || f > hi) hi = f;
+            any = true;
+        }
+        LOG("[csdiag]   sb%d %llx+%llx: %llu of %llu words not zero, %llu NaN/inf, floats %g..%g, first", i, (unsigned long long)a,
+            (unsigned long long)sz, (unsigned long long)nz, (unsigned long long)scan, (unsigned long long)bad, lo, hi);
+        for (uint64_t j = 0; j < scan && j < 12; j++) LOG(" %08x", w[j]);
+        LOG("\n");
+    }
+}
+
 static void dispatch_compute(uint32_t gx, uint32_t gy, uint32_t gz) {
     snap_reason = "compute"; snapshots_invalidate(NULL);
     if (!st.program || !gx || !gy || !gz) return;
@@ -3990,6 +4045,7 @@ static void dispatch_compute(uint32_t gx, uint32_t gy, uint32_t gz) {
     if (cp->si->uses_gmem_map && cp->si->uses_gmem_store) gfast_finish(cb);
     if (cp->si->uses_gmem_store) vc_mark_sbufs(5);
     stat_dispatches++;
+    cs_diag_after(gx, gy, gz);
 }
 
 // ================================================================== draws
@@ -5467,7 +5523,14 @@ void renderer_save_texture_tex(TexBackend *b, const char *path) {
     VkBufferImageCopy c = {.bufferOffset = out.off, .imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1}, .imageExtent = {w, h, 1}};
     vkCmdCopyImageToBuffer(cb, img, VK_IMAGE_LAYOUT_GENERAL, out.buf, 1, &c);
     renderer_flush();
-    vk_save_png(path, out.ptr, w, h);
+    if (!strncmp(path, "mean:", 5)) {  // (LARECOMP_VK_PASS_MEANS, vk_end_pass_at)
+        const uint8_t *px = out.ptr;
+        uint64_t sum[4] = {0};
+        for (uint64_t i = 0; i < (uint64_t)w * h; i++)
+            for (int k = 0; k < 4; k++) sum[k] += px[i * 4 + k];
+        double n = (double)w * h;
+        LOG("[passmean] %s: %.1f %.1f %.1f %.1f\n", path + 5, sum[0] / n, sum[1] / n, sum[2] / n, sum[3] / n);
+    } else vk_save_png(path, out.ptr, w, h);
     vkDestroyImageView(g_vk.dev, tv, NULL);
     vmaDestroyImage(g_vk.vma, img, mem);
 }
