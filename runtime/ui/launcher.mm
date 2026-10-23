@@ -91,7 +91,7 @@ static void save_png(id<MTLTexture> tex, const char *path) {
 // it): beta_<n> until 1.0, then v<major>.<minor>.<patch>. A test build (a pre-release for a few players to try a fix)
 // is test-<name>: the start screen says "Test build <name>", and it previews LARECOMP_TEST_OF - the update check
 // offers that release (or a later one) as soon as it's out, so its players move to it.
-#define LARECOMP_VERSION "test-perf-8"
+#define LARECOMP_VERSION "test-perf-9"
 #define LARECOMP_TEST_OF "beta_5"
 extern "C" const char *larecomp_version(void) { return LARECOMP_VERSION; }  // (the shader caches' tag)
 
